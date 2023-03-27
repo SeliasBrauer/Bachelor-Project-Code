@@ -1,4 +1,4 @@
-function AnimateSquare(VORT,filename,varargin)
+function AnimateSquare(VORT,filename,dx,varargin)
 %takes stacked datamatricies [X,Y,t] and animates throuth time t. 
 %varargin {1} defines the timestep used when saving animation. 
 %any varargin {2} initiates a gif saving. 
@@ -6,7 +6,7 @@ function AnimateSquare(VORT,filename,varargin)
 %domain properties
 xstart = -1; 
 ystart = 2; 
-dx = 1/22;
+
 
 f1 = figure(); 
 vortmin = -5;  % only plot what is in -5 to 5 range
@@ -62,6 +62,7 @@ for i = 1: size(VORT,3)
     con2.ZData = VORT(:,:,i);
 
     pause(0.005) 
+    set(gcf,'color','white')
 
      % make .gif animation
     if nargin == 4
