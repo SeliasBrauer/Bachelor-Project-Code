@@ -8,7 +8,8 @@ xstart = -1;
 ystart = 2; 
 
 
-f1 = figure(); 
+f1 = figure('Position', [10 10 1200 900]);
+
 vortmin = -5;  % only plot what is in -5 to 5 range
 vortmax = 5;
 VORT(VORT>vortmax) = vortmax;  % cutoff at vortmax
@@ -65,9 +66,9 @@ for i = 1: size(VORT,3)
     set(gcf,'color','white')
 
      % make .gif animation
-    if nargin == 4
+    if nargin == 5
         frame = getframe(gcf); % gcf = get current figure
-        image = frame2im(frame);
+        image = frame2im(frame); 
         %filename = 'Square_flow_anim.gif';
         dt = varargin{1};
         [A,map] = rgb2ind(image,256);

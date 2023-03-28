@@ -34,5 +34,3 @@ end
 VORTALL_unconfined_presentation = reshape(vg,[],length(time));
 save("VORTALL_unconfined_presentation","VORTALL_unconfined_presentation");
 
-%%
-AnimateSquare(vg,'Unconfined_presentation.gif',1/22,0.02,1)
