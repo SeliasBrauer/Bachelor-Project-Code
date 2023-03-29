@@ -82,6 +82,7 @@ xlabel('Time');
 %% Pool Data (i.e., build library of nonlinear time series)
 
 polyorder = 2;
+
 nVars = m; %number of independent variables in system 
 
 %pool data adding velocity modes
