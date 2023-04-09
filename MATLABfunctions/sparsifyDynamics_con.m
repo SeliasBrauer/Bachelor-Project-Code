@@ -20,10 +20,19 @@ for i = 1:n/2
     d = [d; 0 ];
 end
 
-C_vec = zeros(1, m * n);
-C_vec(k) = 1; 
-C = [C; C_vec];
-d = [d; 0];
+
+% forcing frequency relation
+
+ C_vec = zeros(1, m * n);
+ C_vec([k(2),k(3)]) = [0.332/0.1660, -1];
+ C = [C;C_vec];
+ d = [d;0];
+
+ C_vec = zeros(1, m * n);
+ C_vec([k(2),k(6)]) = [3, -1];
+ C = [C;C_vec];
+ d = [d;0];
+%}
 
 % stack derivative data
 dXdt = reshape(dXdt,[],1);
