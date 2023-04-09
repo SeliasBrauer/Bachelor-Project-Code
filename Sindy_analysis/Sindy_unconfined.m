@@ -5,24 +5,46 @@ set(groot, 'defaultLegendInterpreter','latex');
 
 m = 6; %number of modes used
 
+%force symmetry? yes = 1; no = 0; 
+symmetry = 1;
+
 % Loading data.
-load VORTALL_SQUARE_UNCONFINED_SYMM.mat
+load VORTALL_unconfined_SINDy.mat
 
 % Creating data matrix . 
-X = VORTALL_SQUARE_UNCONFINED_SYMM;
+X = VORTALL_unconfined_SINDy(:,:);
 
 %grid size
 dx = 1/22; 
-
-%% Plot Vorticity
 nx = 89;  % Number of grid points in x-direction
 ny = 199;  % Number of grid points in y-direction
+
+%% Plot Vorticity
 
 timestep = 10; % Can be chosen between 1 and 217. 
 plotSquare(reshape(X(:,timestep),nx,ny),dx);
 title('Vorticity Snapshot')
 
 %% Compute POD modes
+if symmetry == 1 %Creating symmetrized data matrix for POD.
+
+    Y = [X X]; % Y will be the symmetrized data matrix.
+    for k=1:size(X,2)
+
+        % Flipping y-coordinate.
+        xflip = reshape(flipud(reshape(X(:,k),nx,ny)),ny*nx,1);
+
+        % Adding sign change.
+        Y(:,k+size(X,2)) = -xflip;
+    end
+
+    X = Y;
+    plotSquare(reshape(X(:,1),nx,ny),dx); % plot of wake.
+
+    plotSquare(reshape(X(:,1+size(X,2)/2),nx,ny),dx); % plot of transformed wake.
+   
+end
+
 Xavg = mean(X,2); % Mean subtracted data matrix is found
 
 %compute eigenmodes on mean subtracted data
@@ -34,6 +56,7 @@ for i = 1:m
 plotSquare(reshape(U(:,i) ,nx,ny),dx);
 title(sprintf('Mode %i',i))
 end
+
 plotSquare(reshape(Xavg ,nx,ny),dx);
 title('Mean')
 %% Coefficient of modes time series
@@ -45,42 +68,70 @@ a = a(:,1:m); %coefficients used further on
 
 %% Finding derivatives of system amplitudes
 
-dt = 0.2; % real value of data.
+dt = 0.1; % real value of data.
 
+if symmetry == 1 
+    tspan = 0:dt:(size(X,2)/2 - 1)*dt;
 
-tspan = 0:dt:(size(X,2) - 1)*dt;
+    for i = 2:size(X,2)/2 - 1
+        da(i-1,:) = (a(i+1,:) - a(i-1,:))./ (2*dt) ;
+    end
 
- %compute derivative using finite difference
-for i = 2:length(a)-1
-    da(i-1,:) = (a(i+1,:) - a(i-1,:))./ (2*dt) ;
+    for i = size(X,2)/2 + 2  : size(X,2) - 1
+        da(i-3,:) = (a(i+1,:) - a(i-1,:))./ (2*dt) ;
+    end
+
+else
+    tspan = 0:dt:(size(X,2) - 1)*dt;
+
+    %compute derivative using finite difference
+    for i = 2:length(a)-1
+        da(i-1,:) = (a(i+1,:) - a(i-1,:))./ (2*dt) ;
+    end
+
+    figure() %plot coeficcients and derivatives 
+    for i = 1:m
+        subplot(m,1,i); hold on; 
+        plot(tspan(2:end-1), da(:,i),"--b")
+        plot(tspan(2:end-1), a(2:end-1,i),"-r")
+        legend('Derivative','Amplitude')
+        ylabel(sprintf('Mode %i',i))
+    end
+    xlabel('Time'); 
 end
-
-figure() %plot coeficcients and derivatives
-for i = 1:m
-    subplot(m,1,i); hold on; 
-   plot(tspan(2:end-1), da(:,i),"--b")
-   plot(tspan(2:end-1), a(2:end-1,i),"-r")
-   legend('Derivative','Amplitude')
-   ylabel(sprintf('Mode %i',i))
-end
-
-xlabel('Time'); 
-
 
 %% Pool Data (i.e., build library of nonlinear time series)
 
-polyorder = 2;
+polyorder = 3;
 nVars = m; %number of independent variables in system 
 Theta = poolData_nconstant(a,nVars,polyorder);
 
 %% Compute Sparse regression: sequential least squares
 
-lambda = 0.2; % lambda is our sparsification knob.
+lambda = 0.25; % lambda is our sparsification knob.
 
 %find best fit coefficients
-Xi = sparsifyDynamics(Theta(2:end-1,:),da,lambda,nVars);
+if symmetry == 1
+    %definde used values corrosponding to 
+    range = [2:(size(X,2)/2-1) , (size(X,2)/2 +2) : (size(X,2)-1)];
+    
+    %use constrained sparsifying function
 
-% list of variables
+    %Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
+    %Xi = sparsifyDynamics_con(Theta(range,:),da,lambda,nVars,[],[]);
+
+    % use lasso regression instead of STLS
+    
+    for i = 1:m
+        [Xi(:,i),stats] = lasso(Theta(range,:),da(:,i),'Lambda',lambda);
+    end
+    %}
+else
+    Xi = sparsifyDynamics(Theta(2:end-1,:),da,lambda,nVars);
+end
+
+
+% list of variable names
 var_name = {'x','y','z','alpha','beta','gamma','i','j','k','v'};
 %print dynamics
 poolDataLIST_nconstant(var_name(1:m),Xi,nVars,polyorder);
@@ -89,7 +140,7 @@ poolDataLIST_nconstant(var_name(1:m),Xi,nVars,polyorder);
 x0 = a(1,:); %initial values taken from time series amplitude
 
 %extrapolate system in time to see if unstable
-tspan = 0: dt: 217*dt + 5*31*dt;
+tspan = 0: dt: 1 * size(a,1)*dt - dt;
 
 %options = odeset('RelTol',1e-12,'AbsTol',1e-12*ones(1,3));
 %integrate discovered dynamics with ode 45
@@ -97,11 +148,20 @@ tspan = 0: dt: 217*dt + 5*31*dt;
 [t,ai] = ode45(@(t,x) Diffeq_id_sys_nconstant(t,x,Xi,nVars,polyorder), tspan, x0); 
 
 %plot amplitudes of modes along with discovered amplitudes
-figure() 
+figure()
+set(gcf,'color','white');
+
+%define plotting indexes
+if symmetry ==1 
+    Plt_inx = 1:size(a,1)/2;
+else
+    Plt_inx = 1:size(a,1);
+end
+
 for i = 1:m
-    subplot(m,1,i); hold on; 
+    subplot(m,1,i); hold on; grid on; 
     plot(t,ai(:,i),'b')
-    plot(t(1:length(a(:,i))) , a(:,i),'r')
+    plot(t(Plt_inx) , a(Plt_inx,i),'r')
     ylabel(sprintf('Mode %i',i));
     legend('Identified system','Full system')
 
@@ -110,9 +170,10 @@ for i = 1:m
     end
 end
 
+
 %plot phase space with discovered dynamics
 figure()
-
+set(gcf,'color','white');
 %vector of plot position very stupid way of finding vector of plot
 %positions. 
 
@@ -132,8 +193,8 @@ for i = 1:m
         if j > i
         k = k+1;
         subplot(m-1,m-1,pos(k))
-        plot(ai(:,i), ai(:,j),'b');  grid on; hold on;
-        plot(a(:,i),a(:,j),'r',LineWidth=2); 
+        plot(ai(:,i), ai(:,j),'b');  grid on; hold on; axis equal 
+        plot(a(Plt_inx,i),a(Plt_inx,j),'r',LineWidth=2); 
         %legend('Identified system','Full system'); grid on ; 
         xlabel(sprintf('Mode %i',i)); ylabel(sprintf('Mode %i',j));
         end
@@ -157,7 +218,7 @@ for i = 1:size(Recreate,2)
     VORT_stack(:,:,i) = reshape(Recreate(:,i),nx,ny);
 end
 
-AnimateSquare(VORT_stack,'Square_flow_recreated_anim.gif',0.05,1);
+%AnimateSquare(VORT_stack,'Square_flow_recreated_anim.gif',0.05,1);
 %title('Recreated vorticity Snapshot')
 
 %% Energy diagram of first 10 modes: 
@@ -176,4 +237,4 @@ xlim([0 10]); ylim([0 100]);
 
 
 ME_SQ_UNCON = energy_cap; 
-save("Mode_energy","ME_SQ_UNCON",'-append');
+%save("Mode_energy","ME_SQ_UNCON",'-append');

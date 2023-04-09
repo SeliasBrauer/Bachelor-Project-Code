@@ -3,10 +3,10 @@ set(groot, 'defaultAxesTickLabelInterpreter','latex');
 set(groot, 'defaultTextInterpreter','latex');
 set(groot, 'defaultLegendInterpreter','latex');
 
-m = 5; %number of modes used
+m = 6; %number of modes used
 
 %force symmetry? yes = 1; no = 0; 
-symmetry = 0;
+symmetry = 1;
 
 % Loading data.
 load VORTALL_circ.mat
@@ -39,9 +39,9 @@ if symmetry == 1 %Creating symmetrized data matrix for POD.
     end
 
     X = Y;
-    plotSquare(reshape(X(:,1),nx,ny),dx); % plot of wake.
+    plotCylinder(reshape(X(:,1),nx,ny)); % plot of wake.
 
-    plotSquare(reshape(X(:,1+size(X,2)/2),nx,ny),dx); % plot of transformed wake.
+    plotCylinder(reshape(X(:,1+size(X,2)/2),nx,ny)); % plot of transformed wake.
    
 end
 
@@ -104,11 +104,11 @@ end
 
 polyorder = 2;
 nVars = m; %number of independent variables in system 
-Theta = poolData(a,nVars,polyorder);
+Theta = poolData_nconstant(a,nVars,polyorder);
 
 %% Compute Sparse regression: sequential least squares
 
-lambda = 0.385; % lambda is our sparsification knob.
+lambda = 0.2; % lambda is our sparsification knob.
 
 %find best fit coefficients
 if symmetry == 1
@@ -117,8 +117,8 @@ if symmetry == 1
     
     %use constrained sparsifying function
 
-    %Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
-    Xi = sparsifyDynamics_con(Theta(range,:),da,lambda,nVars,[],[]);
+    Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
+    %Xi = sparsifyDynamics_con(Theta(range,:),da,lambda,nVars,[],[]);
 
     % use lasso regression instead of STLS
     %{
@@ -134,18 +134,18 @@ end
 % list of variable names
 var_name = {'x','y','z','alpha','beta','gamma','i','j','k','v'};
 %print dynamics
-poolDataLIST(var_name(1:m),Xi,nVars,polyorder);
+poolDataLIST_nconstant(var_name(1:m),Xi,nVars,polyorder);
 
 %% Compute antiderivative from sparse dynamics
 x0 = a(1,:); %initial values taken from time series amplitude
 
 %extrapolate system in time to see if unstable
-tspan = 0: dt: 2 * size(a,1)*dt - dt;
+tspan = 0: dt: 1 * size(a,1)*dt - dt;
 
 %options = odeset('RelTol',1e-12,'AbsTol',1e-12*ones(1,3));
 %integrate discovered dynamics with ode 45
 
-[t,ai] = ode45(@(t,x) Diffeq_id_sys(t,x,Xi,nVars,polyorder), tspan, x0); 
+[t,ai] = ode45(@(t,x) Diffeq_id_sys_nconstant(t,x,Xi,nVars,polyorder), tspan, x0); 
 
 %plot amplitudes of modes along with discovered amplitudes
 figure()

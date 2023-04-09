@@ -1,8 +1,9 @@
 % import and animate square flow: 
 clc; clear variables; close all; 
 dx = 1/22 ;
-string1 = 'C:\Users\selia\Desktop\vorticity unconfined-20230303T215318Z-001\vorticity unconfined\vorticity_table_';
-time = 5010 : 10 : 7500;
+string1 = 'C:\Users\selia\Desktop\Unconfined mesh 22 presentation\sindy_unconfined_table_';
+
+time = 5005 : 5 : 7500;
 
 for i = 1:length(time)
     
@@ -28,4 +29,6 @@ for i = 1:length(xg)
         end 
     end
 end 
-save("VORSTACK","vg");
+%%
+VORTALL_unconfined_SINDy = reshape(vg,[],length(time));
+save("VORTALL_unconfined_SINDy","VORTALL_unconfined_SINDy");
