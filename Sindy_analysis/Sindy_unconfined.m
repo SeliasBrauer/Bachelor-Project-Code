@@ -12,7 +12,7 @@ symmetry = 1;
 load VORTALL_unconfined_SINDy.mat
 
 % Creating data matrix . 
-X = VORTALL_unconfined_SINDy(:,1:2:end);
+X = VORTALL_unconfined_SINDy(:,:);
 
 %grid size
 dx = 1/22; 
@@ -65,7 +65,7 @@ s = diag(S); %singular values vector
 a = V.*s'; %coefficeint of modes time series. columns are times series for each mode 
 
 a = a(:,1:m); %coefficients used further on
-dt = 0.2;
+dt = 0.1;
 
 for i = 1:m 
     [~,pktimes] = findpeaks(a(:,i));
@@ -78,7 +78,7 @@ xlabel('Mode'); ylabel('Freqeuncy [Hz]')
 
 %% Finding derivatives of system amplitudes
 
-dt = 0.2; % real value of data.
+dt = 0.1; % real value of data.
 
 if symmetry == 1 
     tspan = 0:dt:(size(X,2)/2 - 1)*dt;
@@ -112,7 +112,7 @@ end
 
 %% Pool Data (i.e., build library of nonlinear time series)
 
-polyorder = 2;
+polyorder = 3;
 nVars = m; %number of independent variables in system 
 Theta = poolData_nconstant(a,nVars,polyorder);
 
@@ -127,8 +127,8 @@ if symmetry == 1
     
     %use constrained sparsifying function
 
-    %Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
-    Xi = sparsifyDynamics_con(Theta(range,:),da,lambda,nVars,[],[]);
+    Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
+    %Xi = sparsifyDynamics_con(Theta(range,:),da,lambda,nVars,[],[]);
 
     % use lasso regression instead of STLS
     %{

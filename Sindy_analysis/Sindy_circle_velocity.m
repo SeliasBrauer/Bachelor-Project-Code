@@ -136,6 +136,7 @@ tspan = 0: dt: 2* 150*dt;
 
 %plot amplitudes of modes along with discovered amplitudes
 figure() 
+set(gcf,'color','white');
 for i = 1:m
     subplot(m,1,i); hold on; 
     plot(t,ai(:,i),'b')
@@ -150,7 +151,7 @@ end
 
 %plot phase space with discovered dynamics
 figure()
-
+set(gcf,'color','white');
 %vector of plot position very stupid way of finding vector of plot
 %positions. 
 
