@@ -3,7 +3,7 @@ set(groot, 'defaultAxesTickLabelInterpreter','latex');
 set(groot, 'defaultTextInterpreter','latex');
 set(groot, 'defaultLegendInterpreter','latex');
 
-m = 6; %number of modes used
+m = 4; %number of modes used
 
 %force symmetry? yes = 1; no = 0; 
 symmetry = 1;
@@ -15,6 +15,7 @@ load VORTALL_unconfined_SINDy.mat
 X = VORTALL_unconfined_SINDy(:,:);
 
 %grid size
+dt = 0.1; % real value of data.  dt = 0.02;  5*dt = 0.1
 dx = 1/22; 
 nx = 89;  % Number of grid points in x-direction
 ny = 199;  % Number of grid points in y-direction
@@ -65,7 +66,6 @@ s = diag(S); %singular values vector
 a = V.*s'; %coefficeint of modes time series. columns are times series for each mode 
 
 a = a(:,1:m); %coefficients used further on
-dt = 0.1;
 
 for i = 1:m 
     [~,pktimes] = findpeaks(a(:,i));
@@ -77,8 +77,6 @@ plot(freq,'ok','MarkerFaceColor','k'); grid on;
 xlabel('Mode'); ylabel('Freqeuncy [Hz]')
 
 %% Finding derivatives of system amplitudes
-
-dt = 0.1; % real value of data.
 
 if symmetry == 1 
     tspan = 0:dt:(size(X,2)/2 - 1)*dt;
@@ -112,13 +110,64 @@ end
 
 %% Pool Data (i.e., build library of nonlinear time series)
 
-polyorder = 3;
+polyorder = 2;
 nVars = m; %number of independent variables in system 
 Theta = poolData_nconstant(a,nVars,polyorder);
 
 %% Compute Sparse regression: sequential least squares
 
-lambda = 0.25; % lambda is our sparsification knob.
+lambda = [0.5, 0.5, 0.008, 0.008]; %, 0.05, 0.05]; % lambda is our sparsification knob.
+
+%constrainst for 4 modes
+
+C{1} = [3,4,1];  d = 0;
+C{2} = [3,8,1];  d = [d;0];
+C{3} = [3,11,1]; d = [d;0];
+C{4} = [3,13,1]; d = [d;0];
+C{5} = [3,14,1]; d = [d;0];
+
+C{6} = [4,3,1];  d = [d;0];
+C{7} = [4,7,1];  d = [d;0];
+C{8} = [4,10,1]; d = [d;0];
+C{9} = [4,12,1]; d = [d;0];
+C{10} = [4,13,1]; d = [d;0];
+%}
+
+%constraints for 6 modes
+%{ 
+C{1} = [3,4,1];  d = 0;
+C{2} = [3,10,1]; d = [d;0];
+C{3} = [3,15,1]; d = [d;0];
+C{4} = [3,19,1]; d = [d;0];
+C{5} = [3,22,1]; d = [d;0];
+C{6} = [3,23,1]; d = [d;0];
+C{7} = [3,24,1]; d = [d;0];
+
+
+C{8} = [4,3,1];  d = [d;0];
+C{9} = [4,9,1];  d = [d;0];
+C{10} = [4,14,1]; d = [d;0];
+C{11} = [4,18,1]; d = [d;0];
+C{12} = [4,19,1]; d = [d;0];
+C{13} = [4,20,1]; d = [d;0];
+C{14} = [4,21,1]; d = [d;0];
+
+C{15} = [5,6,1];  d = [d;0];
+C{16} = [5,12,1]; d = [d;0];
+C{17} = [5,17,1]; d = [d;0];
+C{18} = [5,21,1]; d = [d;0];
+C{19} = [5,24,1]; d = [d;0];
+C{20} = [5,26,1]; d = [d;0];
+C{21} = [5,27,1]; d = [d;0];
+
+C{22} = [6,5,1];  d = [d;0];
+C{23} = [6,11,1]; d = [d;0];
+C{24} = [6,16,1]; d = [d;0];
+C{25} = [6,20,1]; d = [d;0];
+C{26} = [6,23,1]; d = [d;0];
+C{27} = [6,25,1]; d = [d;0];
+C{28} = [6,26,1]; d = [d;0];
+%}
 
 %find best fit coefficients
 if symmetry == 1
@@ -127,8 +176,8 @@ if symmetry == 1
     
     %use constrained sparsifying function
 
-    Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
-    %Xi = sparsifyDynamics_con(Theta(range,:),da,lambda,nVars,[],[]);
+    %Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
+    Xi = sparsifyDynamics_con(Theta(range,:),da,lambda,nVars,C,d);
 
     % use lasso regression instead of STLS
     %{
@@ -143,7 +192,7 @@ end
 
 % list of variable names
 var_name = {'x','y','z','alpha','beta','gamma','i','j','k','v'};
-%print dynamics
+%print dynamics 
 poolDataLIST_nconstant(var_name(1:m),Xi,nVars,polyorder);
 
 %% Compute antiderivative from sparse dynamics

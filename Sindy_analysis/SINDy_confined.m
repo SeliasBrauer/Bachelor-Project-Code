@@ -15,6 +15,7 @@ load VORTALL_confined_sindy.mat
 X = VORTALL_confined_sindy(:,1:2:end);
 
 %grid size
+dt = 0.1; % real value of data. dt = 0.01; 5*dt = 0.05
 dx = 1/30; 
 nx = 121;  % Number of grid points in x-direction
 ny = 271;  % Number of grid points in y-direction
@@ -65,7 +66,6 @@ s = diag(S); %singular values vector
 a = V.*s'; %coefficeint of modes time series. columns are times series for each mode 
 
 a = a(:,1:m); %coefficients used further on
-dt = 0.1;
 
 for i = 1:m 
     [~,pktimes] = findpeaks(a(:,i));
@@ -77,8 +77,6 @@ plot(freq,'ok','MarkerFaceColor','k'); grid on;
 xlabel('Mode'); ylabel('Freqeuncy [Hz]')
 
 %% Finding derivatives of system amplitudes
-
-dt = 0.1; % real value of data.
 
 if symmetry == 1 
     tspan = 0:dt:(size(X,2)/2 - 1)*dt;
