@@ -26,58 +26,12 @@ for i = 1:numel(C_in)
     for j = 1: 3 : length(con) %loop over number of variables being constrained
         var_num = ((con(j)-1)*m + con(j+1)); %variable number found from mode number and internal variables number
         C_vec(var_num) = con(j+2); %give variable factor according to input constraint
-
-        C = [C; C_vec]; %add constraint vector to constraint matrix
     end 
+    C = [C; C_vec]; %add constraint vector to constraint matrix
 end
 end
 
-k = [];
-%{
-for i = 1:n/2  
-    C_vec = zeros(1, m * n);
-    C_vec([ m*((i*2-1) - 1 ) + i*2 , m*(i*2-1) + i*2-1]) = 1;
-    k = [k, find(C_vec)];
-    %C = [C; C_vec];
-    %d = [d; 0 ];
-end
-%}
 
-% forcing frequency relation
-%{
- C_vec = zeros(1, m * n);
- C_vec([k(2),k(3)]) = [0.332/0.1660, -1];
- C = [C;C_vec];
- d = [d;0];
-
- C_vec = zeros(1, m * n);
- C_vec([k(2),k(6)]) = [3, -1];
- C = [C;C_vec];
- d = [d;0];
-%}
- %{
- C_vec = zeros(1, m * n);
- C_vec([k(3)]) = 1;
- C = [C;C_vec];
- d = [d;0];
-
- C_vec = zeros(1, m * n);
- C_vec([k(4)]) = 1;
- C = [C;C_vec];
- d = [d;0];
- %}
-%{
- C_vec = zeros(1, m * n);
- C_vec([k(5)]) = 1;
- C = [C;C_vec];
- d = [d;0];
-
-  C_vec = zeros(1, m * n);
- C_vec([k(6)]) = 1;
- C = [C;C_vec];
- d = [d;0];
-%}
- 
 % stack derivative data
 dXdt = reshape(dXdt,[],1);
 
@@ -89,7 +43,7 @@ for k=1:10
     
     for i = 1:n
     range = ((i-1)*m+1):( i*m);
-    smallinds(range) = abs(Xi(range))< lambda(i); %* mean(abs( nonzeros(Xi(range)) ) ) );   % find small coefficients of individual modes
+    smallinds(range) =  abs(Xi(range))< lambda(i); %* mean(abs( nonzeros(Xi(range)) ) ) );   % find small coefficients of individual modes
     end
     
     %smallinds = (abs(Xi)< lambda * mean(abs( nonzeros(Xi) ) ) );   % find small coefficients

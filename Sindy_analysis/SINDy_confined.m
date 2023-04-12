@@ -9,13 +9,15 @@ m = 6; %number of modes used
 symmetry = 1;
 
 % Loading data.
-load VORTALL_confined_sindy.mat
+load VORTALL_confined_SINDy_Large.mat
 
 % Creating data matrix . 
-X = VORTALL_confined_sindy(:,1:2:end);
+X = VORTALL_confined_SINDy_Large(:,1:2:end/4);
+
+clear VORTALL_confined_SINDy_Large;
 
 %grid size
-dt = 0.1; % real value of data. dt = 0.01; 5*dt = 0.05
+dt = 0.02; % real value of data. dt = 0.01;
 dx = 1/30; 
 nx = 121;  % Number of grid points in x-direction
 ny = 271;  % Number of grid points in y-direction
@@ -110,13 +112,89 @@ end
 
 %% Pool Data (i.e., build library of nonlinear time series)
 
-polyorder = 2;
+polyorder = 1;
 nVars = m; %number of independent variables in system 
 Theta = poolData_nconstant(a,nVars,polyorder);
 
 %% Compute Sparse regression: sequential least squares
 
-lambda = 0.25; % lambda is our sparsification knob.
+lambda = [0.2, 0.2, 0.005, 0.005, 0.043, 0.035]; % lambda is our sparsification knob.
+lambda = 0.;
+
+%constrainst for 4 modes
+%{
+C{1} = [3,4,1];  d = 0;
+C{2} = [3,8,1];  d = [d;0];
+C{3} = [3,11,1]; d = [d;0];
+C{4} = [3,13,1]; d = [d;0];
+C{5} = [3,14,1]; d = [d;0];
+
+C{6} = [4,3,1];  d = [d;0];
+C{7} = [4,7,1];  d = [d;0];
+C{8} = [4,10,1]; d = [d;0];
+C{9} = [4,12,1]; d = [d;0];
+C{10} = [4,13,1]; d = [d;0];
+%}
+
+%constraints for 6 modes
+%z not connected to alpha, beta or gamma
+C{1} = [3,4,1];  d = 0;
+C{2} = [3,5,1];  d = [d;0];
+C{3} = [3,6,1];  d = [d;0];
+C{4} = [3,10,1]; d = [d;0];
+C{5} = [3,11,1]; d = [d;0];
+C{6} = [3,12,1]; d = [d;0];
+C{7} = [3,15,1]; d = [d;0];
+C{8} = [3,16,1]; d = [d;0];
+C{9} = [3,17,1]; d = [d;0];
+C{10} = [3,19,1]; d = [d;0];
+C{11} = [3,20,1]; d = [d;0];
+C{12} = [3,21,1]; d = [d;0];
+C{13} = [3,22,1]; d = [d;0];
+C{14} = [3,23,1]; d = [d;0];
+C{15} = [3,24,1]; d = [d;0];
+C{16} = [3,25,1]; d = [d;0];
+C{17} = [3,26,1]; d = [d;0];
+C{18} = [3,27,1]; d = [d;0];
+
+%alpha not connected to z, beta or gamma
+C{19} = [4,3,1];  d = [d;0];
+C{20} = [4,5,1];  d = [d;0];
+C{21} = [4,6,1];  d = [d;0];
+C{22} = [4,9,1];  d = [d;0];
+C{23} = [4,11,1];  d = [d;0];
+C{24} = [4,12,1];  d = [d;0];
+C{25} = [4,14,1]; d = [d;0];
+C{26} = [4,16,1]; d = [d;0];
+C{27} = [4,17,1]; d = [d;0];
+C{28} = [4,18,1]; d = [d;0];
+C{29} = [4,19,1]; d = [d;0];
+C{30} = [4,20,1]; d = [d;0];
+C{31} = [4,21,1]; d = [d;0];
+C{32} = [4,23,1]; d = [d;0];
+C{33} = [4,24,1]; d = [d;0];
+C{34} = [4,25,1]; d = [d;0];
+C{35} = [4,26,1]; d = [d;0];
+C{36} = [4,27,1]; d = [d;0];
+
+%beta not connected to gamma
+C{37} = [5,6,1];  d = [d;0];
+C{38} = [5,12,1]; d = [d;0];
+C{39} = [5,17,1]; d = [d;0];
+C{40} = [5,21,1]; d = [d;0];
+C{41} = [5,24,1]; d = [d;0];
+C{42} = [5,26,1]; d = [d;0];
+C{43} = [5,27,1]; d = [d;0];
+
+%gamma not connected to beta
+C{44} = [6,5,1];  d = [d;0];
+C{45} = [6,11,1]; d = [d;0];
+C{46} = [6,16,1]; d = [d;0];
+C{47} = [6,20,1]; d = [d;0];
+C{48} = [6,23,1]; d = [d;0];
+C{49} = [6,25,1]; d = [d;0];
+C{50} = [6,26,1]; d = [d;0];
+%}
 
 %find best fit coefficients
 if symmetry == 1
@@ -126,7 +204,7 @@ if symmetry == 1
     %use constrained sparsifying function
 
     Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
-    %Xi = sparsifyDynamics_con(Theta(range,:),da,lambda,nVars,[],[]);
+    %Xi = sparsifyDynamics_con(Theta(range,:),da,lambda,nVars,C,d);
 
     % use lasso regression instead of STLS
     %{
@@ -151,6 +229,7 @@ x0 = a(1,:); %initial values taken from time series amplitude
 tspan = 0: dt: 1 * size(a,1)*dt - dt;
 
 %options = odeset('RelTol',1e-12,'AbsTol',1e-12*ones(1,3));
+
 %integrate discovered dynamics with ode 45
 
 [t,ai] = ode45(@(t,x) Diffeq_id_sys_nconstant(t,x,Xi,nVars,polyorder), tspan, x0); 

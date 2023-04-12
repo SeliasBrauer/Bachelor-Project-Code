@@ -3,7 +3,7 @@ set(groot, 'defaultAxesTickLabelInterpreter','latex');
 set(groot, 'defaultTextInterpreter','latex');
 set(groot, 'defaultLegendInterpreter','latex');
 
-m = 4; %number of modes used
+m = 6; %number of modes used
 
 %force symmetry? yes = 1; no = 0; 
 symmetry = 1;
@@ -116,7 +116,7 @@ Theta = poolData_nconstant(a,nVars,polyorder);
 
 %% Compute Sparse regression: sequential least squares
 
-lambda = [0.5, 0.5, 0.008, 0.008]; %, 0.05, 0.05]; % lambda is our sparsification knob.
+lambda = [0.2, 0.2, 0.005, 0.005]; %, 0.05, 0.05]; % lambda is our sparsification knob.
 
 %constrainst for 4 modes
 
@@ -131,6 +131,8 @@ C{7} = [4,7,1];  d = [d;0];
 C{8} = [4,10,1]; d = [d;0];
 C{9} = [4,12,1]; d = [d;0];
 C{10} = [4,13,1]; d = [d;0];
+
+%C{11} = [1,2,1,2,1,1]; d = [d;0];
 %}
 
 %constraints for 6 modes
