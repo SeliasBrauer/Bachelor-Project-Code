@@ -68,7 +68,7 @@ a = V.*s'; %coefficeint of modes time series. columns are times series for each 
 a = a(:,1:m); %coefficients used further on
 
 for i = 1:m 
-    [~,pktimes] = findpeaks(a(:,i));
+    [~,pktimes] = findpeaks(a(1:end/2,i));
     Period(i) = mean(diff(pktimes))*dt;
 end
 freq = 1./Period

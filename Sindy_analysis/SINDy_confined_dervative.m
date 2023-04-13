@@ -12,12 +12,13 @@ symmetry = 1;
 load VORTALL_confined_SINDy_Large.mat
 
 % Creating data matrix . 
-X = VORTALL_confined_SINDy_Large(:,1:2:end/4);
+stepsize = 10; %define data sampling rate fx: stepsize = 2 : every second snapshot is used. 
+X = VORTALL_confined_SINDy_Large(:,1:stepsize:end/2);
 
 clear VORTALL_confined_SINDy_Large;
 
 %grid size
-dt = 0.02; % real value of data. dt = 0.01;
+dt = 0.01 * stepsize; % real value of data. dt = 0.01;
 dx = 1/30; 
 nx = 121;  % Number of grid points in x-direction
 ny = 271;  % Number of grid points in y-direction
@@ -70,13 +71,17 @@ a = V.*s'; %coefficeint of modes time series. columns are times series for each 
 a = a(:,1:m); %coefficients used further on
 
 for i = 1:m 
-    [~,pktimes] = findpeaks(a(:,i));
+    [pk,pktimes] = findpeaks(a(1:end/2,i));
     Period(i) = mean(diff(pktimes))*dt;
+    amplitude(i) = mean(pk);
 end
-freq = 1./Period;
+freq = 1./Period
+
+omega = 2*pi./Period;  % calculate angular frequency
 
 plot(freq,'ok','MarkerFaceColor','k'); grid on; 
 xlabel('Mode'); ylabel('Freqeuncy [Hz]')
+
 
 %% Finding derivatives of system amplitudes
 
@@ -110,16 +115,52 @@ else
     xlabel('Time'); 
 end
 
+%% Fitting cosine curve to amplitude to find "exact" derivative. 
+
+%find angular frequency and phase shift for each mode 
+for i = 1:m
+    % create model to be fitted to data.
+    mdl = fittype(@(omega, phi, t) amplitude(i)*cos(omega*t +phi),'independent',{'t'});
+
+    %find frequency and phase shift of each mode 
+    myfit = fit(tspan',a(1:end/2,i),mdl,'start',[omega(i),rand()]);
+    
+    %save found coefficients
+    coe(i,:) = [myfit.omega, myfit.phi];
+    figure()
+    plot(myfit,tspan',a(1:end/2,i))
+end
+
+%calculate derivative: 
+% -a*omega*sin(omega*t+phi)
+
+da_fit = -amplitude'.*coe(:,1).*sin(coe(:,1).*tspan+coe(:,2));
+
+for i = 1:m 
+ figure(); 
+ plot(tspan(2:end-1), da(1:end/2,i),'b'); hold on; 
+ plot(tspan(2:end-1), da_fit(i, 2:end-1),'r')
+ legend('Finite difference','Curve fitting');
+end 
+
+% Plot difference in finite difference and curve fitting method
+div_diff = mean( abs(da(1:end/2,:)' - da_fit(:, 2:end-1)),2);
+div_rmse = rmse(da_fit(:, 2:end-1), da(1:end/2,:)', 2);
+
+
+figure(); 
+plot(div_rmse,'ok')
+
 %% Pool Data (i.e., build library of nonlinear time series)
 
-polyorder = 1;
+polyorder = 2;
 nVars = m; %number of independent variables in system 
 Theta = poolData_nconstant(a,nVars,polyorder);
 
 %% Compute Sparse regression: sequential least squares
 
-lambda = [0.2, 0.2, 0.005, 0.005, 0.043, 0.035]; % lambda is our sparsification knob.
-lambda = 0.;
+lambda = [0.16, 0.16, 0.005, 0.005, 0.026, 0.044]; % lambda is our sparsification knob.
+%lambda = 0.;
 
 %constrainst for 4 modes
 %{
@@ -162,8 +203,8 @@ C{19} = [4,3,1];  d = [d;0];
 C{20} = [4,5,1];  d = [d;0];
 C{21} = [4,6,1];  d = [d;0];
 C{22} = [4,9,1];  d = [d;0];
-C{23} = [4,11,1];  d = [d;0];
-C{24} = [4,12,1];  d = [d;0];
+C{23} = [4,11,1]; d = [d;0];
+C{24} = [4,12,1]; d = [d;0];
 C{25} = [4,14,1]; d = [d;0];
 C{26} = [4,16,1]; d = [d;0];
 C{27} = [4,17,1]; d = [d;0];
@@ -203,8 +244,8 @@ if symmetry == 1
     
     %use constrained sparsifying function
 
-    Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
-    %Xi = sparsifyDynamics_con(Theta(range,:),da,lambda,nVars,C,d);
+    %Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
+    Xi = sparsifyDynamics_con(Theta(range,:),da,lambda,nVars,C,d);
 
     % use lasso regression instead of STLS
     %{
