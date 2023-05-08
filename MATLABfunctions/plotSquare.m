@@ -1,9 +1,9 @@
-function f1 = plotSquare(VORT,dx)
+function plotSquare(VORT,dx)
 %domain properties
 xstart = -1; 
-ystart = 2; 
+ystart = 0.5*(size(VORT,1) - 1)*dx;  %2; 
 
-f1 = figure(); 
+%f1 = figure(); 
 vortmin = -5;  % only plot what is in -5 to 5 range
 vortmax = 5;
 VORT(VORT>vortmax) = vortmax;  % cutoff at vortmax
@@ -50,5 +50,7 @@ fill(x,y,[.3 .3 .3])  % place square
 plot(x,y,'k','LineWidth',1.2) % square boundary
 
 xlabel('x'); ylabel('y'); % ax labels
+
+set(gcf,'color','w'); %background color white
 
 end

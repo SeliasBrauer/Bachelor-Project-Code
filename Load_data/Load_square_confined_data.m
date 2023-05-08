@@ -1,8 +1,8 @@
 % import and animate square flow: 
 clc; clear variables; close all; 
-dx = 1/22 ;
-string1 = 'C:\Users\selia\Desktop\Vorticity confined, Ly = 5\Vorticity_table_';
-time = 5010 : 10 : 7500;
+dx = 1/30 ;
+string1 = 'C:\Users\selia\Desktop\Simulation data';
+time = 5001 : 1 : 7500;
 
 for i = 1:length(time)
     
@@ -30,6 +30,6 @@ for i = 1:length(xg)
 end 
 %%
 %AnimateSquare(vg,'Square_confined_anim.gif')
-VORTALL_CONFINED_LY5 = reshape(vg,[],length(time)) ;
+VORTALL_CONFINED_SINDy_Large = reshape(vg,[],length(time)) ;
 
-save("VORTALL_CONFINED_LY5","VORTALL_CONFINED_LY5");
+save("VORTALL_CONFINED_SINDy_Large","VORTALL_CONFINED_SINDy_Large");

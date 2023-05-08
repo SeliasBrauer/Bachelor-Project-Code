@@ -12,7 +12,7 @@ symmetry = 1;
 load VORTALL_confined_SINDy_Large.mat
 
 % Creating data matrix . 
-stepsize = 10; %define data sampling rate fx: stepsize = 2 : every second snapshot is used. 
+stepsize = 8; %define data sampling rate fx: stepsize = 2 : every second snapshot is used. 
 X = VORTALL_confined_SINDy_Large(:,1:stepsize:end/2);
 
 clear VORTALL_confined_SINDy_Large;
@@ -96,6 +96,15 @@ if symmetry == 1
         da(i-3,:) = (a(i+1,:) - a(i-1,:))./ (2*dt) ;
     end
 
+    figure() %plot coeficcients and derivatives 
+    for i = 1:m
+        subplot(m,1,i); hold on; 
+        plot(tspan(2:end-1), da(1:end/2,i),"--b")
+        plot(tspan(2:end-1), a(2:end/2-1,i),"-r")
+        legend('Derivative','Amplitude')
+        ylabel(sprintf('Mode %i',i))
+    end
+
 else
     tspan = 0:dt:(size(X,2) - 1)*dt;
 
@@ -118,38 +127,49 @@ end
 %% Fitting cosine curve to amplitude to find "exact" derivative. 
 
 %find angular frequency and phase shift for each mode 
+figure(); set(gcf, 'color','w')
+coe = [];
 for i = 1:m
     % create model to be fitted to data.
-    mdl = fittype(@(omega, phi, t) amplitude(i)*cos(omega*t +phi),'independent',{'t'});
+    mdl = fittype(@(omega, phi, a, C, t) a*cos(omega*t +phi) + C,'independent',{'t'});
 
     %find frequency and phase shift of each mode 
-    myfit = fit(tspan',a(1:end/2,i),mdl,'start',[omega(i),rand()]);
+    myfit = fit(tspan',a(1:end/2,i),mdl,'start',[omega(i),rand(),amplitude(i),rand()]);
     
     %save found coefficients
-    coe(i,:) = [myfit.omega, myfit.phi];
-    figure()
+    coe(i,:) = [myfit.omega, myfit.phi, myfit.a, myfit.C];
+    subplot(3,2,i)
     plot(myfit,tspan',a(1:end/2,i))
+    xlabel('Time [s]'); ylabel(sprintf('Amplitude mode %i',i)); 
+    title('Fitted data')
 end
 
 %calculate derivative: 
 % -a*omega*sin(omega*t+phi)
 
-da_fit = -amplitude'.*coe(:,1).*sin(coe(:,1).*tspan+coe(:,2));
+da_fit = -coe(:,3).*coe(:,1).*sin(coe(:,1).*tspan+coe(:,2));
 
+figure();  set(gcf, 'color','w')
 for i = 1:m 
- figure(); 
- plot(tspan(2:end-1), da(1:end/2,i),'b'); hold on; 
+ subplot(3,2,i)
+ plot(tspan(2:end-1), da(1:end/2,i),'.b'); hold on; grid on; 
  plot(tspan(2:end-1), da_fit(i, 2:end-1),'r')
  legend('Finite difference','Curve fitting');
+ xlabel('Time [s]'); ylabel(sprintf('Derivative mode %i',i)); 
+ title('Found derivative')
 end 
+%}
 
-% Plot difference in finite difference and curve fitting method
+
+% Plot difference in finite difference and curve fitting method via mean
+% square error
 div_diff = mean( abs(da(1:end/2,:)' - da_fit(:, 2:end-1)),2);
-div_rmse = rmse(da_fit(:, 2:end-1), da(1:end/2,:)', 2);
+div_mse_02 = 1/length(da(1:end/2)) * sum ( (da(1:end/2,:)' - da_fit(:, 2:end-1)) .^2 ,2);
 
+%save("Derivative_error","div_mse_02",'-append')
 
 figure(); 
-plot(div_rmse,'ok')
+plot(div_mse_02,'ok')
 
 %% Pool Data (i.e., build library of nonlinear time series)
 

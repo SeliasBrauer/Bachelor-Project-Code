@@ -1,4 +1,4 @@
-function Xi = sparsifyDynamics_con(Theta,dXdt,lambda,n,C_in,d)
+function Xi = sparsifyDynamics_con_single(Theta,dXdt,lambda,n,C_in,d)
 % Copyright 2015, All Rights Reserved
 % Code by Steven L. Brunton
 % For Paper, "Discovering Governing Equations from Data: 
@@ -38,12 +38,21 @@ dXdt = reshape(dXdt,[],1);
 % compute Sparse regression: sequential least squares
 Xi = lsqlin(Theta_copy,dXdt,[],[],C,d,[],[],[],opts);  % initial guess: Least-squares
 
+
 % lambda is our sparsification knob.
-for k=1:10
-    
+for k=1:50
+    smallinds = zeros(length(Xi),1); %vector for storing small indexes. 
+
     for i = 1:n
-    range = ((i-1)*m+1):( i*m);
-    smallinds(range) =  abs(Xi(range))< lambda(i);% * mean(abs( nonzeros(Xi(range)) ) ) );   % find small coefficients of individual modes
+    range = ((i-1)*m+1):( i*m); %coefficient range for mode i. 
+    Xi(Xi == 0) = NaN;   %temperaly remove zero values: 
+    [min_c,min_indx] = min(abs(Xi(range))); % find smallest coefficient in range.
+    Xi(isnan(Xi)) = 0; %Change NaN back to zero.  
+   
+
+    %if smallest coefficint for mode i is smalled than lambda for mode i.
+    %add to small index. 
+    smallinds(range(min_indx)) =  min_c< lambda(i); % * mean(abs( nonzeros(Xi(range)) ) ) );   % find small coefficients of individual modes
     end
     
     %smallinds = (abs(Xi)< lambda * mean(abs( nonzeros(Xi) ) ) );   % find small coefficients
@@ -54,7 +63,7 @@ for k=1:10
         c_vec = zeros(1,width(Theta_copy)); %create zero vector
         c_vec(indx(i)) = 1; % identify index with small coefficeint
         C = [C; c_vec]; % append to constraint matrix
-        d = [d; 0]; % force coefficient to be zero. 
+        d = [d; 0]; % force small coefficient to be zero. 
     end
     
     % compute new dynamics with new constraints

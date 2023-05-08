@@ -11,13 +11,14 @@ symmetry = 1;
 % Loading data.
 load VORTALL_confined_SINDy_Large.mat
 
+stepsize = 1; %define data sampling rate fx: stepsize = 2 : every second snapshot is used.
 % Creating data matrix . 
-X = VORTALL_confined_SINDy_Large(:,1:2:end/4);
+X = VORTALL_confined_SINDy_Large(:,1:stepsize:end/4);
 
 clear VORTALL_confined_SINDy_Large;
 
 %grid size
-dt = 0.02; % real value of data. dt = 0.01;
+dt = 0.01*stepsize; % real value of data. dt = 0.01;
 dx = 1/30; 
 nx = 121;  % Number of grid points in x-direction
 ny = 271;  % Number of grid points in y-direction
@@ -56,10 +57,12 @@ X_B = X - Xavg*ones(1,size(X,2));
 
 %plot first principal components
 for i = 1:m
+subplot(m/2, 2,i)
 plotSquare(reshape(U(:,i) ,nx,ny),dx);
 title(sprintf('Mode %i',i))
 end
 
+figure()
 plotSquare(reshape(Xavg ,nx,ny),dx);
 title('Mean')
 %% Coefficient of modes time series
@@ -91,6 +94,16 @@ if symmetry == 1
         da(i-3,:) = (a(i+1,:) - a(i-1,:))./ (2*dt) ;
     end
 
+    figure() %plot coeficcients and derivatives 
+    for i = 1:m
+        subplot(m,1,i); hold on; 
+        plot(tspan(2:end-1), da(1:end/2,i),".b")
+        plot(tspan(2:end-1), a(2:end/2-1,i),".r")
+        legend('Derivative','Amplitude')
+        ylabel(sprintf('Mode %i',i))
+    end
+    xlabel('Time'); 
+
 else
     tspan = 0:dt:(size(X,2) - 1)*dt;
 
@@ -110,17 +123,26 @@ else
     xlabel('Time'); 
 end
 
+% save derivative and time span for convergance test of finite difference. 
+struct_004.dt = dt; 
+struct_004.timeseries = tspan;
+struct_004.derivative = da;
+%save("Derivatives", "struct_004",'-append');
+
+
 %% Pool Data (i.e., build library of nonlinear time series)
 
-polyorder = 1;
+polyorder = 2;
 nVars = m; %number of independent variables in system 
 Theta = poolData_nconstant(a,nVars,polyorder);
 
 %% Compute Sparse regression: sequential least squares
 
-lambda = [0.2, 0.2, 0.005, 0.005, 0.043, 0.035]; % lambda is our sparsification knob.
-lambda = 0.;
+lambda2 = [0.5, 0.5, 0.01, 0.003, 0.001, 0.001]; % lambda is our sparsification knob.
+lambda = 0.01; 
 
+%lambda2 = [0,0,0,0,0,0]; 
+C = []; d = []; 
 %constrainst for 4 modes
 %{
 C{1} = [3,4,1];  d = 0;
@@ -135,6 +157,7 @@ C{8} = [4,10,1]; d = [d;0];
 C{9} = [4,12,1]; d = [d;0];
 C{10} = [4,13,1]; d = [d;0];
 %}
+
 
 %constraints for 6 modes
 %z not connected to alpha, beta or gamma
@@ -194,6 +217,55 @@ C{47} = [6,20,1]; d = [d;0];
 C{48} = [6,23,1]; d = [d;0];
 C{49} = [6,25,1]; d = [d;0];
 C{50} = [6,26,1]; d = [d;0];
+
+%x not connected to z, alpha, beta or gamma
+C{51} = [1,3,1]; d = [d;0];
+C{52} = [1,4,1]; d = [d;0];
+C{53} = [1,5,1]; d = [d;0];
+C{54} = [1,6,1]; d = [d;0];
+C{55} = [1,9,1]; d = [d;0];
+C{56} = [1,10,1]; d = [d;0];
+C{57} = [1,11,1]; d = [d;0];
+C{58} = [1,12,1]; d = [d;0];
+C{59} = [1,14,1]; d = [d;0];
+C{60} = [1,15,1]; d = [d;0];
+C{61} = [1,16,1]; d = [d;0];
+C{62} = [1,17,1]; d = [d;0];
+C{63} = [1,18,1]; d = [d;0];
+C{64} = [1,19,1]; d = [d;0];
+C{65} = [1,20,1]; d = [d;0];
+C{66} = [1,21,1]; d = [d;0];
+C{67} = [1,22,1]; d = [d;0];
+C{68} = [1,23,1]; d = [d;0];
+C{69} = [1,24,1]; d = [d;0];
+C{70} = [1,25,1]; d = [d;0];
+C{71} = [1,26,1]; d = [d;0];
+C{72} = [1,27,1]; d = [d;0];
+
+%y not connected to z, alpha, beta or gamma
+C{73} = [2,3,1]; d = [d;0];
+C{74} = [2,4,1]; d = [d;0];
+C{75} = [2,5,1]; d = [d;0];
+C{76} = [2,6,1]; d = [d;0];
+C{77} = [2,9,1]; d = [d;0];
+C{78} = [2,10,1]; d = [d;0];
+C{79} = [2,11,1]; d = [d;0];
+C{80} = [2,12,1]; d = [d;0];
+C{81} = [2,14,1]; d = [d;0];
+C{82} = [2,15,1]; d = [d;0];
+C{83} = [2,16,1]; d = [d;0];
+C{84} = [2,17,1]; d = [d;0];
+C{85} = [2,18,1]; d = [d;0];
+C{86} = [2,19,1]; d = [d;0];
+C{87} = [2,20,1]; d = [d;0];
+C{88} = [2,21,1]; d = [d;0];
+C{89} = [2,22,1]; d = [d;0];
+C{90} = [2,23,1]; d = [d;0];
+C{91} = [2,24,1]; d = [d;0];
+C{92} = [2,25,1]; d = [d;0];
+C{93} = [2,26,1]; d = [d;0];
+C{94} = [2,27,1]; d = [d;0];
+
 %}
 
 %find best fit coefficients
@@ -203,15 +275,15 @@ if symmetry == 1
     
     %use constrained sparsifying function
 
-    Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
-    %Xi = sparsifyDynamics_con(Theta(range,:),da,lambda,nVars,C,d);
+    %Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
+    
+    %Xi = sparsifyDynamics_con(Theta(range,:),da,lambda2,nVars,C,d);
 
-    % use lasso regression instead of STLS
-    %{
-    for i = 1:m
-        [Xi(:,i),stats] = lasso(Theta(range,:),da(:,i),'Lambda',lambda);
-    end
-    %}
+    Xi = sparsifyDynamics_con_single(Theta(range,:),da, lambda2, nVars,C,d);
+
+    %Xi = sparsifyDynamics_con_lasso(Theta(range,:),da,lambda,nVars,C,d);
+
+    %Xi = sparsifyDynamics_con_mix(Theta(range,:),da,lambda,lambda2,nVars,C,d);
 else
     Xi = sparsifyDynamics(Theta(2:end-1,:),da,lambda,nVars);
 end
@@ -226,12 +298,11 @@ poolDataLIST_nconstant(var_name(1:m),Xi,nVars,polyorder);
 x0 = a(1,:); %initial values taken from time series amplitude
 
 %extrapolate system in time to see if unstable
-tspan = 0: dt: 1 * size(a,1)*dt - dt;
+tspan = 0: dt: 1* size(a,1)*dt - dt;
 
 %options = odeset('RelTol',1e-12,'AbsTol',1e-12*ones(1,3));
 
 %integrate discovered dynamics with ode 45
-
 [t,ai] = ode45(@(t,x) Diffeq_id_sys_nconstant(t,x,Xi,nVars,polyorder), tspan, x0); 
 
 %plot amplitudes of modes along with discovered amplitudes

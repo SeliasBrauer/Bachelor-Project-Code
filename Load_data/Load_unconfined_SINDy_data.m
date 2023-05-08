@@ -1,9 +1,8 @@
 % import and animate square flow: 
 clc; clear variables; close all; 
 dx = 1/22 ;
-string1 = 'C:\Users\selia\Desktop\Unconfined mesh 22 presentation\sindy_unconfined_table_';
-
-time = 5005 : 5 : 7500;
+string1 = 'C:\Users\selia\Desktop\Simulation data\Unconfined Mesh 22\Unconfined Mesh 22 SINDy\sindy_unconfined_table_';
+time = 5001 : 1 : 7500;
 
 for i = 1:length(time)
     
@@ -30,5 +29,5 @@ for i = 1:length(xg)
     end
 end 
 %%
-VORTALL_unconfined_SINDy = reshape(vg,[],length(time));
-save("VORTALL_unconfined_SINDy","VORTALL_unconfined_SINDy");
+VORTALL_unconfined_SINDy_Large = reshape(vg,[],length(time));
+save("VORTALL_unconfined_SINDy_Large","VORTALL_unconfined_SINDy_Large");
