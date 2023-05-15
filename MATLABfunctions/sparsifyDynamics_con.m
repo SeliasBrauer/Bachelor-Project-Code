@@ -5,7 +5,7 @@ function Xi = sparsifyDynamics_con(Theta,dXdt,lambda,n,C_in,d)
 %        Sparse Identification of Nonlinear Dynamical Systems"
 % by S. L. Brunton, J. L. Proctor, and J. N. Kutz
 
-opts = optimset('Display','off');
+opts = optimset('Display','off','Algorithm','interior-point');
 
 %takes cell array of constraints C_in
 % C_in = {[mode, variable, constant, mode, variable, constant , ...]  [...]  []  }
@@ -31,6 +31,8 @@ for i = 1:numel(C_in)
 end
 end
 
+%find unique constraints from constraint matrix ie. remove repeated constratins: 
+[C,ia] = unique(C,'rows'); d = d(ia);  
 
 % stack derivative data
 dXdt = reshape(dXdt,[],1);
@@ -56,6 +58,9 @@ for k=1:10
         C = [C; c_vec]; % append to constraint matrix
         d = [d; 0]; % force coefficient to be zero. 
     end
+
+    %find unique constraints from constraint matrix ie. remove repeated constratins: 
+    [C,ia] = unique(C,'rows'); d = d(ia);  
     
     % compute new dynamics with new constraints
     Xi = lsqlin(Theta_copy,dXdt, [],[] ,C,d,[],[],[],opts);

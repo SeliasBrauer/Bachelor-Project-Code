@@ -3,7 +3,7 @@ set(groot, 'defaultAxesTickLabelInterpreter','latex');
 set(groot, 'defaultTextInterpreter','latex');
 set(groot, 'defaultLegendInterpreter','latex');
 
-m = 6; %number of modes used
+m = 8; %number of modes used
 
 %force symmetry? yes = 1; no = 0; 
 symmetry = 1;
@@ -13,7 +13,7 @@ load VORTALL_confined_SINDy_Large.mat
 
 stepsize = 1; %define data sampling rate fx: stepsize = 2 : every second snapshot is used.
 % Creating data matrix . 
-X = VORTALL_confined_SINDy_Large(:,1:stepsize:end/4);
+X = VORTALL_confined_SINDy_Large(:,1:stepsize:end/2);
 
 clear VORTALL_confined_SINDy_Large;
 
@@ -57,7 +57,7 @@ X_B = X - Xavg*ones(1,size(X,2));
 
 %plot first principal components
 for i = 1:m
-subplot(m/2, 2,i)
+subplot(ceil(m/2), 2,i)
 plotSquare(reshape(U(:,i) ,nx,ny),dx);
 title(sprintf('Mode %i',i))
 end
@@ -73,8 +73,13 @@ a = V.*s'; %coefficeint of modes time series. columns are times series for each 
 a = a(:,1:m); %coefficients used further on
 
 for i = 1:m 
-    [~,pktimes] = findpeaks(a(:,i));
-    Period(i) = mean(diff(pktimes))*dt;
+    if symmetry == 1
+        [~,pktimes] = findpeaks(a(1:end/2,i));
+        Period(i) = mean(diff(pktimes))*dt;
+    else
+        [~,pktimes] = findpeaks(a(:,i));
+        Period(i) = mean(diff(pktimes))*dt;
+    end
 end
 freq = 1./Period;
 
@@ -138,134 +143,41 @@ Theta = poolData_nconstant(a,nVars,polyorder);
 
 %% Compute Sparse regression: sequential least squares
 
-lambda2 = [0.5, 0.5, 0.01, 0.003, 0.001, 0.001]; % lambda is our sparsification knob.
-lambda = 0.01; 
+lambda = 0.00031; 
+lambda2 = [0.2 , 0.5, 0.0075, 0.004, 0.01, 0.006, 0.04, 0.02, 0.01, 0.0002]; % works well for 8 modes STLS
+lambda2 = [0.2 , 0.5, 0.0075, 0.004, 0.01, 0.005, 0.04, 0.02, 0.01, 0.0002]; % lambda is our sparsification knob.
 
-%lambda2 = [0,0,0,0,0,0]; 
-C = []; d = []; 
-%constrainst for 4 modes
+lambda = 0.02; 
+%lambda2 = 0.2* ones(1,m);
+%lambda2 = [0,0,0,0,0,0,0,0]; 
+
+C = []; d = [];
+
+%[C,d] = hierarchical_con(nVars,2);
+%C{end+1} = [4,10,1]; d = [d;0]; 
+
 %{
-C{1} = [3,4,1];  d = 0;
-C{2} = [3,8,1];  d = [d;0];
-C{3} = [3,11,1]; d = [d;0];
-C{4} = [3,13,1]; d = [d;0];
-C{5} = [3,14,1]; d = [d;0];
+% symmetry constraints for 20 modes
+C{end+1} = [1,2,1,2,1,1]; d = 0;
+C{end+1} = [3,4,1,4,3,1]; d = [d;0]; 
+C{end+1} = [5,6,1,6,5,1]; d = [d;0];
+C{end+1} = [7,8,1,8,7,1]; d = [d;0];
+C{end+1} = [9,10,1,10,9,1]; d = [d;0];
+C{end+1} = [11,12,1,12,11,1]; d = [d;0];
+C{end+1} = [13,14,1,14,13,1]; d = [d;0];
+C{end+1} = [15,16,1,16,15,1]; d = [d;0];
+C{end+1} = [17,18,1,18,17,1]; d = [d;0];
+C{end+1} = [19,20,1,20,19,1]; d = [d;0];
 
-C{6} = [4,3,1];  d = [d;0];
-C{7} = [4,7,1];  d = [d;0];
-C{8} = [4,10,1]; d = [d;0];
-C{9} = [4,12,1]; d = [d;0];
-C{10} = [4,13,1]; d = [d;0];
-%}
-
-
-%constraints for 6 modes
-%z not connected to alpha, beta or gamma
-C{1} = [3,4,1];  d = 0;
-C{2} = [3,5,1];  d = [d;0];
-C{3} = [3,6,1];  d = [d;0];
-C{4} = [3,10,1]; d = [d;0];
-C{5} = [3,11,1]; d = [d;0];
-C{6} = [3,12,1]; d = [d;0];
-C{7} = [3,15,1]; d = [d;0];
-C{8} = [3,16,1]; d = [d;0];
-C{9} = [3,17,1]; d = [d;0];
-C{10} = [3,19,1]; d = [d;0];
-C{11} = [3,20,1]; d = [d;0];
-C{12} = [3,21,1]; d = [d;0];
-C{13} = [3,22,1]; d = [d;0];
-C{14} = [3,23,1]; d = [d;0];
-C{15} = [3,24,1]; d = [d;0];
-C{16} = [3,25,1]; d = [d;0];
-C{17} = [3,26,1]; d = [d;0];
-C{18} = [3,27,1]; d = [d;0];
-
-%alpha not connected to z, beta or gamma
-C{19} = [4,3,1];  d = [d;0];
-C{20} = [4,5,1];  d = [d;0];
-C{21} = [4,6,1];  d = [d;0];
-C{22} = [4,9,1];  d = [d;0];
-C{23} = [4,11,1];  d = [d;0];
-C{24} = [4,12,1];  d = [d;0];
-C{25} = [4,14,1]; d = [d;0];
-C{26} = [4,16,1]; d = [d;0];
-C{27} = [4,17,1]; d = [d;0];
-C{28} = [4,18,1]; d = [d;0];
-C{29} = [4,19,1]; d = [d;0];
-C{30} = [4,20,1]; d = [d;0];
-C{31} = [4,21,1]; d = [d;0];
-C{32} = [4,23,1]; d = [d;0];
-C{33} = [4,24,1]; d = [d;0];
-C{34} = [4,25,1]; d = [d;0];
-C{35} = [4,26,1]; d = [d;0];
-C{36} = [4,27,1]; d = [d;0];
-
-%beta not connected to gamma
-C{37} = [5,6,1];  d = [d;0];
-C{38} = [5,12,1]; d = [d;0];
-C{39} = [5,17,1]; d = [d;0];
-C{40} = [5,21,1]; d = [d;0];
-C{41} = [5,24,1]; d = [d;0];
-C{42} = [5,26,1]; d = [d;0];
-C{43} = [5,27,1]; d = [d;0];
-
-%gamma not connected to beta
-C{44} = [6,5,1];  d = [d;0];
-C{45} = [6,11,1]; d = [d;0];
-C{46} = [6,16,1]; d = [d;0];
-C{47} = [6,20,1]; d = [d;0];
-C{48} = [6,23,1]; d = [d;0];
-C{49} = [6,25,1]; d = [d;0];
-C{50} = [6,26,1]; d = [d;0];
-
-%x not connected to z, alpha, beta or gamma
-C{51} = [1,3,1]; d = [d;0];
-C{52} = [1,4,1]; d = [d;0];
-C{53} = [1,5,1]; d = [d;0];
-C{54} = [1,6,1]; d = [d;0];
-C{55} = [1,9,1]; d = [d;0];
-C{56} = [1,10,1]; d = [d;0];
-C{57} = [1,11,1]; d = [d;0];
-C{58} = [1,12,1]; d = [d;0];
-C{59} = [1,14,1]; d = [d;0];
-C{60} = [1,15,1]; d = [d;0];
-C{61} = [1,16,1]; d = [d;0];
-C{62} = [1,17,1]; d = [d;0];
-C{63} = [1,18,1]; d = [d;0];
-C{64} = [1,19,1]; d = [d;0];
-C{65} = [1,20,1]; d = [d;0];
-C{66} = [1,21,1]; d = [d;0];
-C{67} = [1,22,1]; d = [d;0];
-C{68} = [1,23,1]; d = [d;0];
-C{69} = [1,24,1]; d = [d;0];
-C{70} = [1,25,1]; d = [d;0];
-C{71} = [1,26,1]; d = [d;0];
-C{72} = [1,27,1]; d = [d;0];
-
-%y not connected to z, alpha, beta or gamma
-C{73} = [2,3,1]; d = [d;0];
-C{74} = [2,4,1]; d = [d;0];
-C{75} = [2,5,1]; d = [d;0];
-C{76} = [2,6,1]; d = [d;0];
-C{77} = [2,9,1]; d = [d;0];
-C{78} = [2,10,1]; d = [d;0];
-C{79} = [2,11,1]; d = [d;0];
-C{80} = [2,12,1]; d = [d;0];
-C{81} = [2,14,1]; d = [d;0];
-C{82} = [2,15,1]; d = [d;0];
-C{83} = [2,16,1]; d = [d;0];
-C{84} = [2,17,1]; d = [d;0];
-C{85} = [2,18,1]; d = [d;0];
-C{86} = [2,19,1]; d = [d;0];
-C{87} = [2,20,1]; d = [d;0];
-C{88} = [2,21,1]; d = [d;0];
-C{89} = [2,22,1]; d = [d;0];
-C{90} = [2,23,1]; d = [d;0];
-C{91} = [2,24,1]; d = [d;0];
-C{92} = [2,25,1]; d = [d;0];
-C{93} = [2,26,1]; d = [d;0];
-C{94} = [2,27,1]; d = [d;0];
-
+C{end+1} = [1,2,2,3,4,1]; d = [d;0];
+C{end+1} = [1,2,3,5,6,1]; d = [d;0];
+C{end+1} = [1,2,4,7,8,1]; d = [d;0];
+C{end+1} = [1,2,5,9,10,1]; d = [d;0];
+C{end+1} = [1,2,6,12,11,1]; d = [d;0];
+C{end+1} = [1,2,7,13,14,1]; d = [d;0];
+C{end+1} = [1,2,8,15,16,1]; d = [d;0];
+C{end+1} = [1,2,9,17,18,1]; d = [d;0];
+C{end+1} = [1,2,10,20,19,1]; d = [d;0];
 %}
 
 %find best fit coefficients
@@ -277,20 +189,27 @@ if symmetry == 1
 
     %Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
     
-    %Xi = sparsifyDynamics_con(Theta(range,:),da,lambda2,nVars,C,d);
+    Xi = sparsifyDynamics_con(Theta(range,:),da,lambda2,nVars,C,d);
 
-    Xi = sparsifyDynamics_con_single(Theta(range,:),da, lambda2, nVars,C,d);
+    %Xi = sparsifyDynamics_con_KKT(Theta(range,:),da,lambda2,nVars,C,d);
+   
+    %Xi = sparsifyDynamics_con_zero(Theta(range,:),da,lambda2,nVars,C);
+
+    %Xi = sparsifyDynamics_con_single(Theta(range,:),da, lambda2, nVars,C,d);
 
     %Xi = sparsifyDynamics_con_lasso(Theta(range,:),da,lambda,nVars,C,d);
 
     %Xi = sparsifyDynamics_con_mix(Theta(range,:),da,lambda,lambda2,nVars,C,d);
+
+   %Xi = sparsifyDynamics_con_mix2(Theta(range,:),da,lambda,lambda2,nVars,C);
+
 else
     Xi = sparsifyDynamics(Theta(2:end-1,:),da,lambda,nVars);
 end
 
 
 % list of variable names
-var_name = {'x','y','z','alpha','beta','gamma','i','j','k','v'};
+var_name = {'x','y','z','alpha','beta','gamma','i','j','k','v','m','n','b','v','c','a','s','t','u','h'};
 %print dynamics
 poolDataLIST_nconstant(var_name(1:m),Xi,nVars,polyorder);
 
@@ -298,7 +217,7 @@ poolDataLIST_nconstant(var_name(1:m),Xi,nVars,polyorder);
 x0 = a(1,:); %initial values taken from time series amplitude
 
 %extrapolate system in time to see if unstable
-tspan = 0: dt: 1* size(a,1)*dt - dt;
+tspan = 0: dt: 100 * size(a,1)*dt - dt;
 
 %options = odeset('RelTol',1e-12,'AbsTol',1e-12*ones(1,3));
 
@@ -321,9 +240,9 @@ for i = 1:m
     plot(t,ai(:,i),'b')
     plot(t(Plt_inx) , a(Plt_inx,i),'r')
     ylabel(sprintf('Mode %i',i));
-    legend('Identified system','Full system')
-
+    
     if i == 1; title('System amplitude');
+    legend('Identified system','Full system')
     elseif i == m; xlabel('Time [s]');
     end
 end
@@ -359,6 +278,21 @@ for i = 1:m
     end 
 end 
 
+%% Plot RMSE for each mode against the training data. 
+%find mean amplitude of actual data. 
+for i = 1:m
+    me_amp(i) = mean (findpeaks(abs(a(1:end/2,i))));
+end
+relative_error = rmse(ai,a(1:end/2,:),1) ./ me_amp; %find rmse relative to amplitude for actual data.
+
+error_struct_hierarchical2.re = relative_error; 
+error_struct_hierarchical2.string  = 'Hierarchical constraints STLS'; 
+error_struct_hierarchical2.dt = dt; 
+
+%save('Error_struct',"error_struct_hierarchical2",'-append'); 
+
+figure(); 
+plot(relative_error,'--ok'); 
 
 %% Recreate flow from identified system and POD modes 
 
