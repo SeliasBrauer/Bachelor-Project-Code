@@ -48,7 +48,6 @@ for k=1:10
     smallinds(range) =  abs(Xi(range))< lambda(i);% * mean(abs( nonzeros(Xi(range)) ) ) );   % find small coefficients of individual modes
     end
     
-    %smallinds = (abs(Xi)< lambda * mean(abs( nonzeros(Xi) ) ) );   % find small coefficients
     indx = find(smallinds); 
 
     %add constrainst on small coeffieicnts

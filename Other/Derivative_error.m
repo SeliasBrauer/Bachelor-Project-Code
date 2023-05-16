@@ -92,8 +92,7 @@ plot(dt_esti(ib,6)); hold off
 mse(i,:) = 1/size(dt_true(ia,:),1) .* sum ( (dt_esti(ib,:) - dt_true(ia, :)).^2 ,1);
 mse2(i,:) = rmse(dt_esti(ib,:),dt_true(ia,:));
 
-difference = dt_esti(ib,:) - dt_true(ia, :); 
-
+difference = dt_esti(ib,:) - dt_true(ia, :);  
 subplot(5,2,i)
 plot(data(i).timeseries(2:end-1),difference)
 
@@ -198,7 +197,7 @@ end
 figure; hold on; grid on; 
 
 for i = 1:6
- plot(dt, p_div(:, i),'--o',DisplayName=sprintf('Mode %i',i))
+ plot(dt, mse2(:, i),'--o',DisplayName=sprintf('Mode %i',i))
 end 
 set(gca,'yscale','log')
 xlim([0,51])

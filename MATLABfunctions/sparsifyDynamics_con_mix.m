@@ -1,4 +1,4 @@
-function Xi = sparsifyDynamics_con_mix(Theta,dXdt,lambda,lambda2,n,C_in,d)
+function Xi = sparsifyDynamics_con_mix(Theta,dXdt,lambda,lambda2,n,C_in,d,alpha)
 % Copyright 2015, All Rights Reserved
 % Code by Steven L. Brunton
 % For Paper, "Discovering Governing Equations from Data: 
@@ -31,6 +31,9 @@ for i = 1:numel(C_in)
 end
 end
 
+%find unique constraints from constraint matrix ie. remove repeated constratins: 
+[C,ia] = unique(C,'rows'); d = d(ia);  
+
 % stack derivative data
 dXdt = reshape(dXdt,[],1);
 
@@ -42,7 +45,7 @@ biginds(var_num) = 0;
 biginds = biginds > 0;
 
 % compute Sparse regression: use lasso for initial guess
-Xi = lasso(Theta_copy(:,biginds),dXdt,"Lambda",lambda);  % initial guess: Least-squares
+Xi = lasso(Theta_copy(:,biginds),dXdt,"Lambda",lambda,"Alpha",alpha);  % initial guess: Least-squares
 Xi_big(biginds) = Xi; 
 
 Xi = Xi_big; 
@@ -65,6 +68,9 @@ for k=1:10
         C = [C; c_vec]; % append to constraint matrix
         d = [d; 0]; % force coefficient to be zero. 
     end
+
+    %find unique constraints from constraint matrix ie. remove repeated constratins: 
+    [C,ia] = unique(C,'rows'); d = d(ia);  
     
     % compute new dynamics with new constraints
     Xi = lsqlin(Theta_copy,dXdt, [],[] ,C,d,[],[],[],opts);

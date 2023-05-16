@@ -6,7 +6,7 @@ set(groot, 'defaultLegendInterpreter','latex');
 m = 8; %number of modes used
 
 %force symmetry? yes = 1; no = 0; 
-symmetry = 1;
+symmetry = 0;
 
 % Loading data.
 load VORTALL_unconfined_SINDy_Large.mat

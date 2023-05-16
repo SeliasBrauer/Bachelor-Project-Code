@@ -6,7 +6,7 @@ set(groot, 'defaultLegendInterpreter','latex');
 m = 8; %number of modes used
 
 %force symmetry? yes = 1; no = 0; 
-symmetry = 1;
+symmetry = 0;
 
 % Loading data.
 load VORTALL_confined_SINDy_Large.mat
@@ -145,15 +145,17 @@ Theta = poolData_nconstant(a,nVars,polyorder);
 
 lambda = 0.00031; 
 lambda2 = [0.2 , 0.5, 0.0075, 0.004, 0.01, 0.006, 0.04, 0.02, 0.01, 0.0002]; % works well for 8 modes STLS
-lambda2 = [0.2 , 0.5, 0.0075, 0.004, 0.01, 0.005, 0.04, 0.02, 0.01, 0.0002]; % lambda is our sparsification knob.
 
-lambda = 0.02; 
-%lambda2 = 0.2* ones(1,m);
-%lambda2 = [0,0,0,0,0,0,0,0]; 
+lambda2 = [0.2 , 0.5, 0.0075, 0.004, 0.02, 0.01, 0.01, 0.02, 0.01, 0.0002]; % works very well or 8 mode elastic net
+lambda = 0.002; 
+alpha = 0.5; 
+
+
+%lambda2 = 0.015* ones(1,m); 
 
 C = []; d = [];
 
-%[C,d] = hierarchical_con(nVars,2);
+[C,d] = hierarchical_con(nVars,2);
 %C{end+1} = [4,10,1]; d = [d;0]; 
 
 %{
@@ -189,7 +191,7 @@ if symmetry == 1
 
     %Xi = sparsifyDynamics(Theta(range,:),da,lambda,nVars);
     
-    Xi = sparsifyDynamics_con(Theta(range,:),da,lambda2,nVars,C,d);
+    %Xi = sparsifyDynamics_con(Theta(range,:),da,lambda2,nVars,C,d);
 
     %Xi = sparsifyDynamics_con_KKT(Theta(range,:),da,lambda2,nVars,C,d);
    
@@ -197,14 +199,19 @@ if symmetry == 1
 
     %Xi = sparsifyDynamics_con_single(Theta(range,:),da, lambda2, nVars,C,d);
 
-    %Xi = sparsifyDynamics_con_lasso(Theta(range,:),da,lambda,nVars,C,d);
+    %Xi = sparsifyDynamics_con_lasso(Theta(range,:),da,lambda,nVars,C,d,alpha);
 
-    %Xi = sparsifyDynamics_con_mix(Theta(range,:),da,lambda,lambda2,nVars,C,d);
+    %Xi = sparsifyDynamics_con_mix(Theta(range,:),da,lambda,lambda2,nVars,C,d,alpha);
 
-   %Xi = sparsifyDynamics_con_mix2(Theta(range,:),da,lambda,lambda2,nVars,C);
+    %Xi = sparsifyDynamics_con_mix2(Theta(range,:),da,lambda,lambda2,nVars,C);
 
 else
-    Xi = sparsifyDynamics(Theta(2:end-1,:),da,lambda,nVars);
+    %Xi = sparsifyDynamics(Theta(2:end-1,:),da,lambda,nVars);
+
+    %Xi = sparsifyDynamics_con(Theta(2:end-1,:),da,lambda2,nVars,C,d);
+    
+    Xi = sparsifyDynamics_con_mix(Theta(2:end-1,:),da,lambda,lambda2,nVars,C,d,alpha);
+
 end
 
 
@@ -217,7 +224,7 @@ poolDataLIST_nconstant(var_name(1:m),Xi,nVars,polyorder);
 x0 = a(1,:); %initial values taken from time series amplitude
 
 %extrapolate system in time to see if unstable
-tspan = 0: dt: 100 * size(a,1)*dt - dt;
+tspan = 0: dt: 1 * size(a,1)*dt - dt;
 
 %options = odeset('RelTol',1e-12,'AbsTol',1e-12*ones(1,3));
 
