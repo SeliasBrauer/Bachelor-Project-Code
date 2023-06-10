@@ -13,7 +13,7 @@ load VORTALL_circ.mat
 
 stepsize = 1; %define data sampling rate fx: stepsize = 2 : every second snapshot is used.
 % Creating data matrix . 
-X = VORTALL_circ(:,1:stepsize:end);
+X = - VORTALL_circ(:,1:stepsize:end);
 
 clear VORTALL_circ;
 
@@ -24,10 +24,11 @@ ny = 449;  % Number of grid points in x-direction
 nx = 199;  % Number of grid points in y-direction
 
 %% Plot Vorticity
-
+figure('Position',[400,500,2000,190])
 timestep = 10; % Can be chosen between 1 and 217. 
 plotCylinder(reshape(X(:,timestep),nx,ny));
-title('Vorticity Snapshot')
+set(gca,'fontsize',14)
+%title('Vorticity Snapshot')
 
 %% Compute POD modes
 if symmetry == 1 %Creating symmetrized data matrix for POD.
@@ -43,10 +44,15 @@ if symmetry == 1 %Creating symmetrized data matrix for POD.
     end
 
     X = Y;
+    
+    figure('Position',[400,10,1000,200])
+    subplot(1,2,1);
     plotCylinder(reshape(X(:,1),nx,ny)); % plot of wake.
-
+    set(gca,'fontsize',14); title('Original'); 
+    
+    subplot(1,2,2); 
     plotCylinder(reshape(X(:,1+size(X,2)/2),nx,ny)); % plot of transformed wake.
-   
+    set(gca,'fontsize',14); title('Flipped');
 end
 
 Xavg = mean(X,2); % Mean subtracted data matrix is found
@@ -55,16 +61,35 @@ Xavg = mean(X,2); % Mean subtracted data matrix is found
 X_B = X - Xavg*ones(1,size(X,2));
 [U,S,V] = svd(X_B,'econ'); 
 
-%plot first principal components
+%flip signs such that modes are consistent. 
+for i = 1:size(S,1)
+    U(:,i) = U(:,i) * V(1,i)/abs(V(1,i));
+    V(:,i) = V(:,i) * V(1,i)/abs(V(1,i));
+end
+
+%% plot first POD modes normalized. 
+Xavg_norm = Xavg ./ max(max(abs(Xavg)));
+
 for i = 1:m
-subplot(m/2, 2,i)
-plotCylinder(reshape(U(:,i) ,nx,ny));
+    U_norm(:,i) = U(:,i) ./ max(max(abs(U(:,i))));
+end
+
+mode_fig = figure('Position',[400,10,300,700]); 
+subplot(m+1,1,1)
+
+plotCylinder(reshape(Xavg_norm ,nx,ny));
+title('Mean')
+
+for i = 1:m
+subplot(m+1, 1,i+1)
+plotCylinder(reshape(U_norm(:,i) ,nx,ny));
 title(sprintf('Mode %i',i))
 end
 
-figure()
-plotCylinder(reshape(Xavg ,nx,ny));
-title('Mean')
+savepath = "C:\Users\selia\Desktop\Bachelor Project images\Qualitative analysis"; 
+mode_fig_name = "Circle modes.pdf"; 
+%exportgraphics(mode_fig, fullfile(savepath,mode_fig_name), "ContentType","vector");
+
 %% Coefficient of modes time series
 s = diag(S); %singular values vector
 
@@ -87,7 +112,7 @@ plot(freq,'ok','MarkerFaceColor','k'); grid on;
 xlabel('Mode'); ylabel('Freqeuncy [Hz]')
 
 %% Finding derivatives of system amplitudes
-
+div_fig = figure('position',[400,100,800,500]); grid on;
 if symmetry == 1 
     tspan = 0:dt:(size(X,2)/2 - 1)*dt;
 
@@ -99,17 +124,17 @@ if symmetry == 1
         da(i-3,:) = (a(i+1,:) - a(i-1,:))./ (2*dt) ;
     end
 
-    figure() %plot coeficcients and derivatives 
     for i = 1:m
-        subplot(m,1,i); hold on; 
+        subplot(m,1,i); hold on; grid on;
         plot(tspan(2:end-1), da(1:end/2,i),".b")
         plot(tspan(2:end-1), a(2:end/2-1,i),".r")
          if i == 1 
              legend('Derivative','Amplitude'); 
          end
-        ylabel(sprintf('Mode %i',i))
+        ylabel(sprintf('$a_{%i}$',i))
+        set(gca,'fontsize',10)
     end
-    xlabel('Time'); 
+    xlabel('Time [s]'); 
 
 else
     tspan = 0:dt:(size(X,2) - 1)*dt;
@@ -119,22 +144,27 @@ else
         da(i-1,:) = (a(i+1,:) - a(i-1,:))./ (2*dt) ;
     end
 
-    figure() %plot coeficcients and derivatives 
     for i = 1:m
-        subplot(m,1,i); hold on; 
+        subplot(m,1,i); hold on; grid on;
         plot(tspan(2:end-1), da(:,i),".b")
         plot(tspan(2:end-1), a(2:end-1,i),".r")
         legend('Derivative','Amplitude')
         ylabel(sprintf('Mode %i',i))
     end
-    xlabel('Time'); 
+    xlabel('Time [s]'); 
 end
+set(gcf,'color','w'); %background color white
 
 % save derivative and time span for convergance test of finite difference. 
 struct_020.dt = dt; 
 struct_020.timeseries = tspan;
 struct_020.derivative = da;
 %save("Derivatives_unconfined", "struct_020",'-append');
+
+
+savepath = "C:\Users\selia\Desktop\Bachelor Project images\Qualitative analysis"; 
+div_fig_name = "Circle Amplitudes.pdf"; 
+exportgraphics(div_fig, fullfile(savepath,div_fig_name), "ContentType","vector");
 
 
 %% Pool Data (i.e., build library of nonlinear time series)
@@ -146,142 +176,71 @@ Theta = poolData_nconstant(a,nVars,polyorder);
 %% Compute Sparse regression: sequential least squares
 
 lambda = 0.00031; 
-lambda2 = [0.5 , 0.5, 0.2, 0.2, 0.2, 0.2]; % lambda is our sparsification knob.
-lambda = 0.0001; 
-%lambda2 = [0,0,0,0,0,0]; 
-C = []; d = []; 
+lambda2 = [0.2 , 0.5, 0.0075, 0.004, 0.01, 0.006, 0.04, 0.02, 0.01, 0.0002]; % works well for 8 modes STLS
+
+lambda2 = [0.2 , 0.5, 0.0075, 0.004, 0.02, 0.01, 0.01, 0.02, 0.01, 0.0002]; % works very well or 8 mode elastic net
+lambda = 0.002; 
+%alpha = 0.4; 
 
 
-%constrainst for 4 modes
+%lambda2 = [0.2 , 0.5, 0.005, 0.003, 0.002, 0.001, 0.01, 0.02, 0.01, 0.0002]; % works very well or 8 mode elastic net
+%lambda = 0.08; 
+%alpha = 0.3; 
+
+%lambda2 = [0.2 , 0.5, 0.005, 0.003, 0.004, 0.001]; % works very well or 8 mode elastic net
+lambda2 = 0.2* ones(1,m); 
+%lambda = 0.02;
+%alpha = 0.4; 
+
+
+
+%lambda2 = [0.2 , 0.2, 0.001, 0.002, 0.005, 0.001]; % works very well or 8 mode elastic net
+%lambda = 0.02;
+%alpha = 1; 
+
+C = []; d = [];
+
+%[C,d] = hierarchical_con(nVars,2);
+%C{end+1} = [4,8,1]; d = [d;0]; 
+
+
+% non symmetric proportional constraint model
+
+C{end+1} = [1,2,2,3,4,-1]; d = [d;0];
+C{end+1} = [2,1,2,4,3,-1]; d = [d;0];
+C{end+1} = [1,2,3,5,6,-1]; d = [d;0];
+C{end+1} = [2,1,3,6,5,-1]; d = [d;0];
+
 %{
-C{1} = [3,4,1];  d = 0;
-C{2} = [3,8,1];  d = [d;0];
-C{3} = [3,11,1]; d = [d;0];
-C{4} = [3,13,1]; d = [d;0];
-C{5} = [3,14,1]; d = [d;0];
+% symmetry constraints for 20 modes
+C{end+1} = [1,2,1,2,1,1]; d = 0;
+C{end+1} = [3,4,1,4,3,1]; d = [d;0]; 
+C{end+1} = [5,6,1,6,5,1]; d = [d;0];
 
-C{6} = [4,3,1];  d = [d;0];
-C{7} = [4,7,1];  d = [d;0];
-C{8} = [4,10,1]; d = [d;0];
-C{9} = [4,12,1]; d = [d;0];
-C{10} = [4,13,1]; d = [d;0];
+C{end+1} = [1,2,2,3,4,-1]; d = [d;0];
+C{end+1} = [1,2,3,5,6,-1]; d = [d;0];
+%}
+%{
+C{end+1} = [7,8,1,8,7,1]; d = [d;0];
+C{end+1} = [9,10,1,10,9,1]; d = [d;0];
+C{end+1} = [11,12,1,12,11,1]; d = [d;0];
+C{end+1} = [13,14,1,14,13,1]; d = [d;0];
+C{end+1} = [15,16,1,16,15,1]; d = [d;0];
+C{end+1} = [17,18,1,18,17,1]; d = [d;0];
+C{end+1} = [19,20,1,20,19,1]; d = [d;0];
+%}
+%{
+
+C{end+1} = [1,2,4,7,8,-1]; d = [d;0];
+C{end+1} = [1,2,5,9,10,-1]; d = [d;0];
+C{end+1} = [1,2,6,12,11,-1]; d = [d;0];
+C{end+1} = [1,2,7,13,14,-1]; d = [d;0];
+C{end+1} = [1,2,8,15,16,-1]; d = [d;0];
+C{end+1} = [1,2,9,17,18,-1]; d = [d;0];
+C{end+1} = [1,2,10,20,19,-1]; d = [d;0];
 %}
 
-%{
-%constraints for 6 modes
-%z not connected to alpha, beta or gamma
-C{1} = [3,4,1];  d = 0;
-C{2} = [3,5,1];  d = [d;0];
-C{3} = [3,6,1];  d = [d;0];
-C{4} = [3,10,1]; d = [d;0];
-C{5} = [3,11,1]; d = [d;0];
-C{6} = [3,12,1]; d = [d;0];
-C{7} = [3,15,1]; d = [d;0];
-C{8} = [3,16,1]; d = [d;0];
-C{9} = [3,17,1]; d = [d;0];
-C{10} = [3,19,1]; d = [d;0];
-C{11} = [3,20,1]; d = [d;0];
-C{12} = [3,21,1]; d = [d;0];
-C{13} = [3,22,1]; d = [d;0];
-C{14} = [3,23,1]; d = [d;0];
-C{15} = [3,24,1]; d = [d;0];
-C{16} = [3,25,1]; d = [d;0];
-C{17} = [3,26,1]; d = [d;0];
-C{18} = [3,27,1]; d = [d;0];
 
-%alpha not connected to z, beta or gamma
-C{19} = [4,3,1];  d = [d;0];
-C{20} = [4,5,1];  d = [d;0];
-C{21} = [4,6,1];  d = [d;0];
-C{22} = [4,9,1];  d = [d;0];
-C{23} = [4,11,1];  d = [d;0];
-C{24} = [4,12,1];  d = [d;0];
-C{25} = [4,14,1]; d = [d;0];
-C{26} = [4,16,1]; d = [d;0];
-C{27} = [4,17,1]; d = [d;0];
-C{28} = [4,18,1]; d = [d;0];
-C{29} = [4,19,1]; d = [d;0];
-C{30} = [4,20,1]; d = [d;0];
-C{31} = [4,21,1]; d = [d;0];
-C{32} = [4,23,1]; d = [d;0];
-C{33} = [4,24,1]; d = [d;0];
-C{34} = [4,25,1]; d = [d;0];
-C{35} = [4,26,1]; d = [d;0];
-C{36} = [4,27,1]; d = [d;0];
-
-%beta not connected to gamma
-C{37} = [5,6,1];  d = [d;0];
-C{38} = [5,12,1]; d = [d;0];
-C{39} = [5,17,1]; d = [d;0];
-C{40} = [5,21,1]; d = [d;0];
-C{41} = [5,24,1]; d = [d;0];
-C{42} = [5,26,1]; d = [d;0];
-C{43} = [5,27,1]; d = [d;0];
-
-%gamma not connected to beta
-C{44} = [6,5,1];  d = [d;0];
-C{45} = [6,11,1]; d = [d;0];
-C{46} = [6,16,1]; d = [d;0];
-C{47} = [6,20,1]; d = [d;0];
-C{48} = [6,23,1]; d = [d;0];
-C{49} = [6,25,1]; d = [d;0];
-C{50} = [6,26,1]; d = [d;0];
-
-%x not connected to z, alpha, beta or gamma
-C{51} = [1,3,1]; d = [d;0];
-C{52} = [1,4,1]; d = [d;0];
-C{53} = [1,5,1]; d = [d;0];
-C{54} = [1,6,1]; d = [d;0];
-C{55} = [1,9,1]; d = [d;0];
-C{56} = [1,10,1]; d = [d;0];
-C{57} = [1,11,1]; d = [d;0];
-C{58} = [1,12,1]; d = [d;0];
-C{59} = [1,14,1]; d = [d;0];
-C{60} = [1,15,1]; d = [d;0];
-C{61} = [1,16,1]; d = [d;0];
-C{62} = [1,17,1]; d = [d;0];
-C{63} = [1,18,1]; d = [d;0];
-C{64} = [1,19,1]; d = [d;0];
-C{65} = [1,20,1]; d = [d;0];
-C{66} = [1,21,1]; d = [d;0];
-C{67} = [1,22,1]; d = [d;0];
-C{68} = [1,23,1]; d = [d;0];
-C{69} = [1,24,1]; d = [d;0];
-C{70} = [1,25,1]; d = [d;0];
-C{71} = [1,26,1]; d = [d;0];
-C{72} = [1,27,1]; d = [d;0];
-
-%y not connected to z, alpha, beta or gamma
-C{73} = [2,3,1]; d = [d;0];
-C{74} = [2,4,1]; d = [d;0];
-C{75} = [2,5,1]; d = [d;0];
-C{76} = [2,6,1]; d = [d;0];
-C{77} = [2,9,1]; d = [d;0];
-C{78} = [2,10,1]; d = [d;0];
-C{79} = [2,11,1]; d = [d;0];
-C{80} = [2,12,1]; d = [d;0];
-C{81} = [2,14,1]; d = [d;0];
-C{82} = [2,15,1]; d = [d;0];
-C{83} = [2,16,1]; d = [d;0];
-C{84} = [2,17,1]; d = [d;0];
-C{85} = [2,18,1]; d = [d;0];
-C{86} = [2,19,1]; d = [d;0];
-C{87} = [2,20,1]; d = [d;0];
-C{88} = [2,21,1]; d = [d;0];
-C{89} = [2,22,1]; d = [d;0];
-C{90} = [2,23,1]; d = [d;0];
-C{91} = [2,24,1]; d = [d;0];
-C{92} = [2,25,1]; d = [d;0];
-C{93} = [2,26,1]; d = [d;0];
-C{94} = [2,27,1]; d = [d;0];
-%}
-
-% symmetry constraints for 6 modes
-C{1} = [1,2,1,2,1,1]; d = 0;
-C{2} = [3,4,1,4,3,1]; d = [d;0]; 
-C{3} = [5,6,1,6,5,1]; d = [d;0];
-C{4} = [1,2,2,3,4,1]; d = [d;0];
-C{5} = [1,2,3,6,5,1]; d = [d;0];
 %find best fit coefficients
 if symmetry == 1
     %definde used values corrosponding to 
@@ -293,22 +252,35 @@ if symmetry == 1
     
     Xi = sparsifyDynamics_con(Theta(range,:),da,lambda2,nVars,C,d);
 
+    %Xi = sparsifyDynamics_con_KKT(Theta(range,:),da,lambda2,nVars,C,d);
+   
+    %Xi = sparsifyDynamics_con_zero(Theta(range,:),da,lambda2,nVars,C);
+
     %Xi = sparsifyDynamics_con_single(Theta(range,:),da, lambda2, nVars,C,d);
 
-    %Xi = sparsifyDynamics_con_lasso(Theta(range,:),da,lambda,nVars,C,d);
+    %Xi = sparsifyDynamics_con_lasso(Theta(range,:),da,lambda,nVars,C,d,alpha);
 
-    %Xi = sparsifyDynamics_con_mix(Theta(range,:),da,lambda,lambda2,nVars,C,d);
+    %Xi = sparsifyDynamics_con_mix(Theta(range,:),da,lambda,lambda2,nVars,C,d,alpha);
+
+    %Xi = sparsifyDynamics_con_mix2(Theta(range,:),da,lambda,lambda2,nVars,C);
+
 else
     Xi = sparsifyDynamics(Theta(2:end-1,:),da,lambda,nVars);
+
+    %Xi = sparsifyDynamics_con(Theta(2:end-1,:),da,lambda2,nVars,C,d);
+    
+    %Xi = sparsifyDynamics_con_mix(Theta(2:end-1,:),da,lambda,lambda2,nVars,C,d,alpha);
+
 end
 
 
 % list of variable names
-var_name = {'x','y','z','alpha','beta','gamma','i','j','k','v'};
+var_name = {'a1','a2','a3','a4','a5','a6','a7','a8','a9','a10','a11','a12','a13','a14','a15','a16','a17','a18','a19','a20'};
 %print dynamics
 poolDataLIST_nconstant(var_name(1:m),Xi,nVars,polyorder);
 
 %% Compute antiderivative from sparse dynamics
+
 x0 = a(1,:); %initial values taken from time series amplitude
 
 %extrapolate system in time to see if unstable
@@ -321,9 +293,8 @@ tspan = 0: dt: 1 * size(a,1)*dt - dt;
 [t,ai] = ode45(@(t,x) Diffeq_id_sys_nconstant(t,x,Xi,nVars,polyorder), tspan, x0); 
 
 %plot amplitudes of modes along with discovered amplitudes
-figure()
+figure('position',[400,100,800,500])
 set(gcf,'color','white');
-
 %define plotting indexes
 if symmetry ==1 
     Plt_inx = 1:size(a,1)/2;
@@ -335,17 +306,16 @@ for i = 1:m
     subplot(m,1,i); hold on; grid on; 
     plot(t,ai(:,i),'b')
     plot(t(Plt_inx) , a(Plt_inx,i),'r')
-    ylabel(sprintf('Mode %i',i));
-    legend('Identified system','Full system')
-
-    if i == 1; title('System amplitude');
+    ylabel(sprintf('$a_{%i}$',i));
+    
+    if i == 1; legend('Reproduced','Original');
     elseif i == m; xlabel('Time [s]');
     end
+    set(gca,'fontsize',9)
 end
 
-
 %plot phase space with discovered dynamics
-figure()
+pha_fig = figure('position',[400,100,800,500]); 
 set(gcf,'color','white');
 %vector of plot position very stupid way of finding vector of plot
 %positions. 
@@ -366,16 +336,28 @@ for i = 1:m
         if j > i
         k = k+1;
         subplot(m-1,m-1,pos(k))
-        plot(ai(:,i), ai(:,j),'b');  grid on; hold on; axis equal 
+        grid on; hold on; axis equal 
         plot(a(Plt_inx,i),a(Plt_inx,j),'r',LineWidth=2); 
-        %legend('Identified system','Full system'); grid on ; 
-        xlabel(sprintf('Mode %i',i)); ylabel(sprintf('Mode %i',j));
+        %plot(ai(:,i), ai(:,j),'b');
+        if pos(k) == 1
+        %lgd = legend('Full system','Identified system'); 
+        %lgd.Position = [0.18,0.73,0.01,0.01]; 
         end
+        xlabel(sprintf('$a_{%i}$',i)); ylabel(sprintf('$a_{%i}$',j));
+        end
+        set(gca,'fontsize',9)
     end 
 end 
 
 
+savepath = "C:\Users\selia\Desktop\Bachelor Project images\Qualitative analysis"; 
+div_fig_name = "Circle Phase portrait.pdf"; 
+exportgraphics(pha_fig, fullfile(savepath,div_fig_name), "ContentType","vector");
+
 %% Recreate flow from identified system and POD modes 
+savepath = "C:\Users\selia\Desktop\Bachelor Project images\Contraint analysis\Brunton data";
+figtitle = "Original"; 
+savename = append(figtitle," Snapshot.pdf"); 
 
 
 %Sum all modes with discovered amplitudes. 
@@ -386,13 +368,29 @@ for j = 1:size(Recreate,2)
     end
 end
 
-%stack recreated data: 
-for i = 1:size(Recreate,2)
-    VORT_stack(:,:,i) = reshape(Recreate(:,i),nx,ny);
-end
+timestep = 151; %chosen timestep for plotting
 
+fig_recreated = figure('Position',[400,10,600,200]);
+    %subplot(1,2,1);
+    plotCylinder(reshape(X(:,timestep),nx,ny)); % plot of wake.
+    set(gca,'fontsize',14); %title('Original'); 
+    
+    %subplot(1,2,2); 
+    %plotCylinder(reshape(Recreate(:,timestep),nx,ny)); % plot of transformed wake.
+    %set(gca,'fontsize',14); %title(figtitle);
+
+exportgraphics(fig_recreated,fullfile(savepath,savename),"ContentType","vector")
 %AnimateSquare(VORT_stack,'Square_flow_recreated_anim.gif',0.05,1);
 %title('Recreated vorticity Snapshot')
+
+%% plot enstropy with time
+
+enstrophy_org = sum(X.^2,1); 
+enstrophy_rec = sum(Recreate.^2,1); 
+
+figure(); hold on; grid on; 
+plot(t,enstrophy_rec); 
+plot(t(Plt_inx),enstrophy_org(1:end/2));
 
 %% Energy diagram of first 10 modes: 
 

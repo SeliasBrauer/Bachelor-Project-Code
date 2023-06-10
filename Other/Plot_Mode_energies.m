@@ -19,21 +19,21 @@ load Mode_energy.mat
 
 figure(); grid on; hold on; 
 
-plot(ME_CYL,'*'); 
-plot(ME_circ_vel,'*');
-plot(ME_SQ_UNCON,'*');
-plot(ME_CON_LY6,'*');  
-plot(ME_CON_LY5,'*'); 
-plot(ME_CON_LY4,'*'); 
+plot(ME_circ_vel,'kdiamond');
+plot(ME_CYL,'k+'); 
+plot(ME_SQ_UNCON,'ko',MarkerSize=7);
+plot(ME_CON_LY6,'k^',MarkerSize=5);  
+plot(ME_CON_LY5,'ksquare'); 
+plot(ME_CON_LY4,'kx'); 
 
 
 
  
 
-legend('Cylinder vorticity','Cylinder velocity', 'Square unconfined','Square confined $L_y = 6$'... 
-    ,'Square confined $L_y = 5$','Square confined $L_y = 4$',Location='southeast')
+legend('Cylinder velocity','Cylinder vorticity', 'Square unconfined','Square confined $L_y = 6D_h$'... 
+    ,'Square confined $L_y = 5D_h$','Square confined $L_y = 4D_h$',Location='southeast')
 
-title('Energy caputed by the first 10 modes')
+%title('Energy caputed by the first 10 modes')
 xlabel('Number of modes included')
-ylabel('Energy captured by the model (\%)')
+ylabel('Fluctuation kinetic energy (\%)')
 xlim([0 10]); ylim([0 100]); 

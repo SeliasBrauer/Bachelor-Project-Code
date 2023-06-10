@@ -92,6 +92,8 @@ plot(dt_esti(ib,6)); hold off
 mse(i,:) = 1/size(dt_true(ia,:),1) .* sum ( (dt_esti(ib,:) - dt_true(ia, :)).^2 ,1);
 mse2(i,:) = rmse(dt_esti(ib,:),dt_true(ia,:));
 
+mse3(i,:) = sqrt( sum( (dt_true(ia,:) - dt_esti(ib,:)).^2, 1 ) ) ./ sqrt( sum( (dt_true(ib,:) -  mean(dt_true(ib,:),1) ).^2, 1 ) );
+
 difference = dt_esti(ib,:) - dt_true(ia, :);  
 subplot(5,2,i)
 plot(data(i).timeseries(2:end-1),difference)
@@ -109,14 +111,27 @@ end
 figure; hold on; grid on; 
 
 for i = 1:6
- plot(dt, mse2(:, i),'--o',DisplayName=sprintf('Mode %i',i))
+ plot(dt(2:end), mse2(2:end, i),'--o',DisplayName=sprintf('Mode %i',i))
 end 
-set(gca,'yscale','log')
+%set(gca,'yscale','log')
 xlim([0,51])
 legend('show')
 xlabel('Sampling rate [Hz]'); 
 ylabel('Root Mean Square Error');
-title('Derivative error (confined)')
+%title('Derivative error (confined)')
+
+figure; hold on; grid on; 
+
+%
+for i = 1:6
+ plot(dt, mse3(:, i),'--o',DisplayName=sprintf('Mode %i',i))
+end 
+%set(gca,'yscale','log')
+%xlim([0,51])
+legend('show')
+xlabel('Sampling rate [Hz]'); 
+ylabel('Root Mean Square Error');
+%title('Derivative error (confined)')
 
 
 %% convergance of Finite difference unconfined: 

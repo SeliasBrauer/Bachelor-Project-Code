@@ -13,11 +13,15 @@ imagesc(VORT)
 load CCcool.mat 
 colormap(CC);  % use custom colormap
 hold on; axis equal; 
-colorbar(); 
+cb = colorbar(); clim([-max(max(abs(VORT))), max(max(abs(VORT)))]);
+
+set(cb,'TickLabelInterpreter','latex')
+%cb.Label.String = '\omega';
+%cb.Label.Rotation = 0;
 
 % add contour lines (positive = solid, negative = dotted)
-contour(VORT,[-5.5:.5:-.5 -.25 -.125],':k','LineWidth',1.2)
-contour(VORT,[.125 .25 .5:.5:5.5],'-k','LineWidth',1.2)
+%contour(VORT,[-5.5:.5:-.5 -.25 -.125],':k','LineWidth',1.2)
+%contour(VORT,[.125 .25 .5:.5:5.5],'-k','LineWidth',1.2)
 
 
 % clean up axes
@@ -34,7 +38,7 @@ for i = 1:length(Ytick)
     Ytick_label{i} = sprintf('%i', y);
 end
 
-
+xlim([Xtick(1),Xtick(end)]); ylim([Ytick(1),Ytick(end)])
 set(gca,'XTick',Xtick,'XTickLabel',Xtick_label);
 set(gca,'YTick',Ytick,'YTickLabel',Ytick_label);
 
@@ -49,7 +53,7 @@ y = [y1, y1, y2, y2, y1 ];
 fill(x,y,[.3 .3 .3])  % place square
 plot(x,y,'k','LineWidth',1.2) % square boundary
 
-xlabel('x'); ylabel('y'); % ax labels
+xlabel('x*'); ylabel('y*'); % ax labels
 
 set(gcf,'color','w'); %background color white
 

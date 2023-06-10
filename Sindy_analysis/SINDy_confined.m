@@ -3,17 +3,17 @@ set(groot, 'defaultAxesTickLabelInterpreter','latex');
 set(groot, 'defaultTextInterpreter','latex');
 set(groot, 'defaultLegendInterpreter','latex');
 
-m = 8; %number of modes used
+m = 6; %number of modes used
 
 %force symmetry? yes = 1; no = 0; 
-symmetry = 0;
+symmetry = 1;
 
 % Loading data.
 load VORTALL_confined_SINDy_Large.mat
 
 stepsize = 1; %define data sampling rate fx: stepsize = 2 : every second snapshot is used.
 % Creating data matrix . 
-X = VORTALL_confined_SINDy_Large(:,1:stepsize:end/2);
+X = VORTALL_confined_SINDy_Large(:,1:stepsize:end);
 
 clear VORTALL_confined_SINDy_Large;
 
@@ -21,13 +21,14 @@ clear VORTALL_confined_SINDy_Large;
 dt = 0.01*stepsize; % real value of data. dt = 0.01;
 dx = 1/30; 
 nx = 121;  % Number of grid points in x-direction
-ny = 271;  % Number of grid points in y-direction
+ny = 9*1/dx + 1;  % Number of grid points in y-direction
 
 %% Plot Vorticity
-
-timestep = 10; % Can be chosen between 1 and 217. 
+figure('Position',[400,500,2000,190])
+timestep = 50; % Can be chosen between 1 and 217. 
 plotSquare(reshape(X(:,timestep),nx,ny),dx);
-title('Vorticity Snapshot')
+set(gca,'fontsize',14)
+%title('Vorticity Snapshot')
 
 %% Compute POD modes
 if symmetry == 1 %Creating symmetrized data matrix for POD.
@@ -43,9 +44,9 @@ if symmetry == 1 %Creating symmetrized data matrix for POD.
     end
 
     X = Y;
-    plotSquare(reshape(X(:,1),nx,ny),dx); % plot of wake.
+    %plotSquare(reshape(X(:,1),nx,ny),dx); % plot of wake.
 
-    plotSquare(reshape(X(:,1+size(X,2)/2),nx,ny),dx); % plot of transformed wake.
+    %plotSquare(reshape(X(:,1+size(X,2)/2),nx,ny),dx); % plot of transformed wake.
    
 end
 
@@ -55,16 +56,37 @@ Xavg = mean(X,2); % Mean subtracted data matrix is found
 X_B = X - Xavg*ones(1,size(X,2));
 [U,S,V] = svd(X_B,'econ'); 
 
-%plot first principal components
+%flip signs such that modes are consistent. 
+for i = 1:size(S,1)
+    U(:,i) = U(:,i) * V(1,i)/abs(V(1,i));
+    V(:,i) = V(:,i) * V(1,i)/abs(V(1,i));
+end
+
+%% plot first POD modes normalized. 
+Xavg_norm = Xavg ./ max(max(abs(Xavg)));
 for i = 1:m
-subplot(ceil(m/2), 2,i)
-plotSquare(reshape(U(:,i) ,nx,ny),dx);
+    U_norm(:,i) = U(:,i) ./ max(max(abs(U(:,i)))); 
+end
+
+
+mode_fig = figure('Position',[400,10,300,700]); 
+subplot(m+1,1,1)
+
+plotSquare(reshape(Xavg_norm ,nx,ny),dx);
+title('Mean')
+
+for i = 1:m
+subplot(m+1, 1,i+1)
+plotSquare(reshape(U_norm(:,i) ,nx,ny),dx);
 title(sprintf('Mode %i',i))
 end
 
-figure()
-plotSquare(reshape(Xavg ,nx,ny),dx);
-title('Mean')
+
+savepath = "C:\Users\selia\Desktop\Bachelor Project images\Qualitative analysis"; 
+mode_fig_name = "Confined modes.pdf"; 
+exportgraphics(mode_fig, fullfile(savepath,mode_fig_name), "ContentType","vector");
+
+
 %% Coefficient of modes time series
 s = diag(S); %singular values vector
 
@@ -87,9 +109,10 @@ plot(freq,'ok','MarkerFaceColor','k'); grid on;
 xlabel('Mode'); ylabel('Freqeuncy [Hz]')
 
 %% Finding derivatives of system amplitudes
-
+amp_fig = figure('position',[400,100,800,500]);
 if symmetry == 1 
     tspan = 0:dt:(size(X,2)/2 - 1)*dt;
+    t_sim = tspan(end); 
 
     for i = 2:size(X,2)/2 - 1
         da(i-1,:) = (a(i+1,:) - a(i-1,:))./ (2*dt) ;
@@ -99,15 +122,17 @@ if symmetry == 1
         da(i-3,:) = (a(i+1,:) - a(i-1,:))./ (2*dt) ;
     end
 
-    figure() %plot coeficcients and derivatives 
     for i = 1:m
-        subplot(m,1,i); hold on; 
+        subplot(m,1,i); hold on;  grid on;
         plot(tspan(2:end-1), da(1:end/2,i),".b")
         plot(tspan(2:end-1), a(2:end/2-1,i),".r")
+        if i == 1 
         legend('Derivative','Amplitude')
-        ylabel(sprintf('Mode %i',i))
+        end
+        ylabel(sprintf('$a_{ %i}$',i))
+        set(gca,'fontsize',10)
     end
-    xlabel('Time'); 
+    xlabel('Time [s]'); 
 
 else
     tspan = 0:dt:(size(X,2) - 1)*dt;
@@ -117,16 +142,18 @@ else
         da(i-1,:) = (a(i+1,:) - a(i-1,:))./ (2*dt) ;
     end
 
-    figure() %plot coeficcients and derivatives 
     for i = 1:m
-        subplot(m,1,i); hold on; 
-        plot(tspan(2:end-1), da(:,i),"--b")
-        plot(tspan(2:end-1), a(2:end-1,i),"-r")
+        subplot(m,1,i); hold on;  grid on;
+        plot(tspan(2:end-1), da(:,i),".b")
+        plot(tspan(2:end-1), a(2:end-1,i),".r")
+        if i == 1
         legend('Derivative','Amplitude')
+        end
         ylabel(sprintf('Mode %i',i))
     end
-    xlabel('Time'); 
+    xlabel('Time [s]'); 
 end
+set(gcf,'color','w'); %background color white
 
 % save derivative and time span for convergance test of finite difference. 
 struct_004.dt = dt; 
@@ -134,6 +161,9 @@ struct_004.timeseries = tspan;
 struct_004.derivative = da;
 %save("Derivatives", "struct_004",'-append');
 
+savepath = "C:\Users\selia\Desktop\Bachelor Project images\Qualitative analysis"; 
+amp_fig_name = "Confined amplitudes.pdf"; 
+exportgraphics(amp_fig, fullfile(savepath,amp_fig_name), "ContentType","vector");
 
 %% Pool Data (i.e., build library of nonlinear time series)
 
@@ -143,26 +173,54 @@ Theta = poolData_nconstant(a,nVars,polyorder);
 
 %% Compute Sparse regression: sequential least squares
 
-lambda = 0.00031; 
-lambda2 = [0.2 , 0.5, 0.0075, 0.004, 0.01, 0.006, 0.04, 0.02, 0.01, 0.0002]; % works well for 8 modes STLS
+%lambda = 0.00031; 
+%lambda2 = [0.2 , 0.5, 0.0075, 0.004, 0.01, 0.006, 0.04, 0.02, 0.01, 0.0002]; % works well for 8 modes STLS
 
-lambda2 = [0.2 , 0.5, 0.0075, 0.004, 0.02, 0.01, 0.01, 0.02, 0.01, 0.0002]; % works very well or 8 mode elastic net
-lambda = 0.002; 
-alpha = 0.5; 
+%lambda2 = [0.2 , 0.5, 0.005, 0.005, 0.029, 0.027, 0.0145, 0.013, 0.015, 0.0002]; % works very well for 8 mode elastic net
+%lambda = 0.000001; 
+%alpha = 0.4; 
+
+%lambda2 = [0.2 , 0.5, 0.0075, 0.004, 0.02, 0.01, 0.01, 0.02, 0.01, 0.0002]; % works very well or 8 mode elastic net
+%lambda = 0.002; 
+%alpha = 0.4; 
+
+%lambda2 = 0.0037* ones(1,m); 
+%lambda2 = [0.2 , 0.5, 0.0075, 0.004, 0.01, 0.01]; 
+%lambda2 = [0.2 , 0.5, 0.0075, 0.006, 0.01, 0.01]; 
+%lambda = 0.5; alpha = 1;
+%lambda2 = [0.2 , 0.5, 0.0075, 0.004, 0.01, 0.01]; lambda = 0.0005; alpha = 1;
+%lambda2 = [0.2, 0.5, 0.0075, 0.006, 0.01, 0.01]; lambda = 0.005; alpha = 0.9;
 
 
-%lambda2 = 0.015* ones(1,m); 
 
+lambda2 = [0.2, 0.2, 0.0075, 0.004, 0.025, 0.02]; lambda = 0.0001; alpha = 0.4;
+g = 4;
+
+%lambda2 = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2]; g = 2; 
+%lambda = 0.2; g = 1; 
 C = []; d = [];
 
 [C,d] = hierarchical_con(nVars,2);
-%C{end+1} = [4,10,1]; d = [d;0]; 
+%C{end+1} = [7,3,1]; d = [d;0]; 
 
-%{
+
 % symmetry constraints for 20 modes
+%{
 C{end+1} = [1,2,1,2,1,1]; d = 0;
 C{end+1} = [3,4,1,4,3,1]; d = [d;0]; 
 C{end+1} = [5,6,1,6,5,1]; d = [d;0];
+C{end+1} = [1,2,2,3,4,-1]; d = [d;0];
+C{end+1} = [1,2,3,5,6,1]; d = [d;0];
+%}
+%{
+C{end+1} = [1,2,4,7,8,1]; d = [d;0];
+C{end+1} = [1,2,5,9,10,1]; d = [d;0];
+C{end+1} = [1,2,6,12,11,1]; d = [d;0];
+C{end+1} = [1,2,7,13,14,1]; d = [d;0];
+C{end+1} = [1,2,8,15,16,1]; d = [d;0];
+C{end+1} = [1,2,9,17,18,1]; d = [d;0];
+C{end+1} = [1,2,10,20,19,1]; d = [d;0];
+
 C{end+1} = [7,8,1,8,7,1]; d = [d;0];
 C{end+1} = [9,10,1,10,9,1]; d = [d;0];
 C{end+1} = [11,12,1,12,11,1]; d = [d;0];
@@ -171,15 +229,6 @@ C{end+1} = [15,16,1,16,15,1]; d = [d;0];
 C{end+1} = [17,18,1,18,17,1]; d = [d;0];
 C{end+1} = [19,20,1,20,19,1]; d = [d;0];
 
-C{end+1} = [1,2,2,3,4,1]; d = [d;0];
-C{end+1} = [1,2,3,5,6,1]; d = [d;0];
-C{end+1} = [1,2,4,7,8,1]; d = [d;0];
-C{end+1} = [1,2,5,9,10,1]; d = [d;0];
-C{end+1} = [1,2,6,12,11,1]; d = [d;0];
-C{end+1} = [1,2,7,13,14,1]; d = [d;0];
-C{end+1} = [1,2,8,15,16,1]; d = [d;0];
-C{end+1} = [1,2,9,17,18,1]; d = [d;0];
-C{end+1} = [1,2,10,20,19,1]; d = [d;0];
 %}
 
 %find best fit coefficients
@@ -201,7 +250,7 @@ if symmetry == 1
 
     %Xi = sparsifyDynamics_con_lasso(Theta(range,:),da,lambda,nVars,C,d,alpha);
 
-    %Xi = sparsifyDynamics_con_mix(Theta(range,:),da,lambda,lambda2,nVars,C,d,alpha);
+    Xi = sparsifyDynamics_con_mix(Theta(range,:),da,lambda,lambda2,nVars,C,d,alpha);
 
     %Xi = sparsifyDynamics_con_mix2(Theta(range,:),da,lambda,lambda2,nVars,C);
 
@@ -210,31 +259,45 @@ else
 
     %Xi = sparsifyDynamics_con(Theta(2:end-1,:),da,lambda2,nVars,C,d);
     
-    Xi = sparsifyDynamics_con_mix(Theta(2:end-1,:),da,lambda,lambda2,nVars,C,d,alpha);
+    %Xi = sparsifyDynamics_con_mix(Theta(2:end-1,:),da,lambda,lambda2,nVars,C,d,alpha);
 
 end
 
 
 % list of variable names
-var_name = {'x','y','z','alpha','beta','gamma','i','j','k','v','m','n','b','v','c','a','s','t','u','h'};
+var_name = {'a1','a2','a3','a4','a5','a6','a7','a8','a9','a10','a11','a12','a13','a14','a15','a16','a17','a18','a19','a20'};
 %print dynamics
 poolDataLIST_nconstant(var_name(1:m),Xi,nVars,polyorder);
 
 %% Compute antiderivative from sparse dynamics
+%define used method to obtain system. 
+%g = 2; % number [1;4] assigning constraint method.
+
+%string containing methods
+methods = {'No Constraints','Proportional symmetric','Hierarchical LIISTLS','Hierarchical EIISTLS'};
+
+%define figure path and names: 
+path_amp = "C:\Users\selia\Desktop\Bachelor Project images\Data sensitivity analysis\Total time";
+amp_figure_name = append(methods{g},' Amplitude ',sprintf('dt.%.3f s. T. %.3f s',dt,t_sim),'.pdf');
+
+path_phase = "C:\Users\selia\Desktop\Bachelor Project images\Data sensitivity analysis\Total time";
+phase_figure_name = append(methods{g}, ' phase portrait ',sprintf('dt.%.3f s. T. %.3f s',dt,t_sim),'.pdf');
+
+
 x0 = a(1,:); %initial values taken from time series amplitude
 
 %extrapolate system in time to see if unstable
-tspan = 0: dt: 1 * size(a,1)*dt - dt;
+tspan = 0: dt: 1* size(a,1)*dt - dt;
 
 %options = odeset('RelTol',1e-12,'AbsTol',1e-12*ones(1,3));
 
 %integrate discovered dynamics with ode 45
+
 [t,ai] = ode45(@(t,x) Diffeq_id_sys_nconstant(t,x,Xi,nVars,polyorder), tspan, x0); 
 
 %plot amplitudes of modes along with discovered amplitudes
-figure()
+fig_amp = figure('position',[400,100,800,500]);
 set(gcf,'color','white');
-
 %define plotting indexes
 if symmetry ==1 
     Plt_inx = 1:size(a,1)/2;
@@ -246,17 +309,19 @@ for i = 1:m
     subplot(m,1,i); hold on; grid on; 
     plot(t,ai(:,i),'b')
     plot(t(Plt_inx) , a(Plt_inx,i),'r')
-    ylabel(sprintf('Mode %i',i));
+    ylabel(sprintf('$a_{%i}$',i));
     
-    if i == 1; title('System amplitude');
-    legend('Identified system','Full system')
+    if i == 1; legend('Reproduced','Original');
     elseif i == m; xlabel('Time [s]');
     end
+    set(gca,'fontsize',9)
 end
+% save amplitude plot in path:  
+%exportgraphics(fig_amp,fullfile(path_amp, amp_figure_name),'ContentType','vector');
 
 
 %plot phase space with discovered dynamics
-figure()
+fig_phase = figure('position',[400,100,800,500]);
 set(gcf,'color','white');
 %vector of plot position very stupid way of finding vector of plot
 %positions. 
@@ -277,49 +342,88 @@ for i = 1:m
         if j > i
         k = k+1;
         subplot(m-1,m-1,pos(k))
-        plot(ai(:,i), ai(:,j),'b');  grid on; hold on; axis equal 
+        grid on; hold on; axis equal 
         plot(a(Plt_inx,i),a(Plt_inx,j),'r',LineWidth=2); 
-        %legend('Identified system','Full system'); grid on ; 
-        xlabel(sprintf('Mode %i',i)); ylabel(sprintf('Mode %i',j));
+        %plot(ai(:,i), ai(:,j),'b');
+        if pos(k) == 1
+        %lgd = legend('Full system','Identified system'); 
+        %lgd.Position = [0.18,0.73,0.01,0.01]; 
         end
+        xlabel(sprintf('$a_{%i}$',i)); ylabel(sprintf('$a_{%i}$',j));
+        end
+        set(gca,'fontsize',9)
     end 
 end 
 
+% save amplitude plot in path:  
+%exportgraphics(fig_phase,fullfile(path_phase, phase_figure_name),'ContentType','vector')
+
+
+savepath = "C:\Users\selia\Desktop\Bachelor Project images\Qualitative analysis"; 
+fig_phase_name = "Confined Phase portrait.pdf"; 
+%exportgraphics(fig_phase, fullfile(savepath,fig_phase_name), "ContentType","vector");
 %% Plot RMSE for each mode against the training data. 
 %find mean amplitude of actual data. 
-for i = 1:m
-    me_amp(i) = mean (findpeaks(abs(a(1:end/2,i))));
-end
-relative_error = rmse(ai,a(1:end/2,:),1) ./ me_amp; %find rmse relative to amplitude for actual data.
+%load error_struct_data_analysis.mat 
+relative_error = rmse(ai(Plt_inx,:),a(Plt_inx,:),1) ./ s(1:m)'; %find rmse relative to amplitude for actual data.
 
-error_struct_hierarchical2.re = relative_error; 
-error_struct_hierarchical2.string  = 'Hierarchical constraints STLS'; 
-error_struct_hierarchical2.dt = dt; 
+%{
+error_struct_data_analysis.re{end+1} = relative_error; 
+error_struct_data_analysis.string{end+1}  = methods{g}; 
+error_struct_data_analysis.dt(end+1) = dt;
+error_struct_data_analysis.T(end+1) = t_sim;
 
-%save('Error_struct',"error_struct_hierarchical2",'-append'); 
+%save('error_struct_data_analysis',"error_struct_data_analysis"); 
+%} 
 
-figure(); 
+figure(); hold on 
 plot(relative_error,'--ok'); 
+grid on
+
 
 %% Recreate flow from identified system and POD modes 
 
 
 %Sum all modes with discovered amplitudes. 
-Recreate(:,:) = Xavg.*ones(size(X,1),length(tspan)); 
+Recreate(:,:) = Xavg.*ones(size(X,1),length(tspan));
+%Recreate(:,:) = zeros(size(X,1),length(tspan));
 for j = 1:size(Recreate,2)
-    for i = 1:m 
-    Recreate(:,j) = Recreate(:,j) + U(:,i)*ai(j,i);
+    for i = 1:2
+    Recreate(:,j) = Recreate(:,j) + U(:,i)*a(j,i);
     end
 end
 
-%stack recreated data: 
-for i = 1:size(Recreate,2)
-    VORT_stack(:,:,i) = reshape(Recreate(:,i),nx,ny);
-end
+timestep = 50; %chosen timestep for plotting
 
-%AnimateSquare(VORT_stack,'Square_flow_recreated_anim.gif',0.05,1);
+figure('Position',[400,10,1000,200])
+    subplot(1,2,1);
+    plotSquare(reshape(X(:,timestep),nx,ny),dx); % plot of Original snapshot
+    set(gca,'fontsize',14); title('Original'); 
+    
+    subplot(1,2,2); 
+    plotSquare(reshape(Recreate(:,timestep),nx,ny),dx); % plot of recreated snapshot
+    set(gca,'fontsize',14); title('Recreated');
+
+
+% create Vorticity stack: 
+for i = 1:length(a(1:end/2,i))
+VORT_stack(:,:,i) = reshape(Recreate(:,i),nx,ny);
+end
+VORT_stack = VORT_stack(:,:,1:10:end/2);
+
+AnimateSquare(VORT_stack,'Square_Con_recreated_anim_nomean_2modes.gif',dx,0.05,1);
 %title('Recreated vorticity Snapshot')
 
+%% plot enstropy with time
+
+enstrophy_org = sum(X.^2,1); 
+enstrophy_rec = sum(Recreate.^2,1); 
+
+figure(); hold on; grid on; 
+plot(t,enstrophy_rec); 
+plot(t(Plt_inx),enstrophy_org(1:end/2));
+figure()
+plot(t(Plt_inx),enstrophy_rec(Plt_inx)./enstrophy_org(1:end/2));
 %% Energy diagram of first 10 modes: 
 
 %plot the energy camptured by first 10 modes

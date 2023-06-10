@@ -11,13 +11,14 @@ load VELOCITIES_circ.mat
 % Creating data matrix . 
 X = [UALL;VALL]; % stack velocity data
 
-%% Plot Vorticity
+%index splitting data: 
+n_half = height(X)/2;
+
 nx = 199;  % Number of grid points in x-direction
 ny = 449;  % Number of grid points in y-direction
 
+%% Plot Vorticity
 timestep = 10; % Can be chosen between 1 and 217. 
-%index splitting data: 
-n_half = height(X)/2; 
 
 plotCylinder(reshape(X(1:n_half,timestep),nx,ny));
 title('Velocity-x Snapshot')
@@ -25,7 +26,7 @@ title('Velocity-x Snapshot')
 plotCylinder(reshape(X(n_half+1:end,timestep),nx,ny));
 title('Velocity-y Snapshot')
 
-%% Compute POD modes
+%% Compute POD modes 
 
 Xavg = mean(X,2); % Mean subtracted data matrix is found
 
@@ -34,23 +35,57 @@ X_B = X - Xavg*ones(1,size(X,2));
 
 [U,S,V] = svd(X_B,'econ'); 
 
-%plot first principal components
-for i = 1:m
-%plot X- velocity 
-plotCylinder(reshape(U(1:n_half,i) ,nx,ny));
-title(sprintf('Mode %i x-velocity',i))
-
-%plot y-velocity 
-plotCylinder(reshape(U(n_half+1:end,i) ,nx,ny));
-title(sprintf('Mode %i y-velocity %i',i))
+%flip signs such that modes are consistent. 
+for i = 1:size(S,1)
+    U(:,i) = U(:,i) * V(1,i)/abs(V(1,i));
+    V(:,i) = V(:,i) * V(1,i)/abs(V(1,i));
 end
-   
 
-plotCylinder(reshape(Xavg(1:n_half) ,nx,ny));
-title('Mean x-velocity')
 
-plotCylinder(reshape(Xavg(n_half+1:end) ,nx,ny));
-title('Mean y-velocity')
+%% plot first POD modes normalized. 
+Xavg_norm = Xavg(1:n_half) ./ max(max(abs( Xavg(1:n_half) )));
+Yavg_norm = Xavg(n_half+1:end) ./ max(max(abs(Xavg(n_half+1:end)))); 
+
+for i = 1:m
+    Ux_norm(1:n_half,i) = U(1:n_half,i) ./ max(max(abs(U(1:n_half,i))));
+    Uy_norm(:,i) = U(n_half+1:end,i) ./ max(max(abs(U(n_half+1:end,i))));
+end
+
+
+mode_fig = figure('Position',[400,10,300,700]); 
+subplot(m+1,1,1)
+
+plotCylinder(reshape(Xavg_norm ,nx,ny));
+title('Mean')
+
+for i = 1:m
+subplot(m+1, 1,i+1)
+plotCylinder(reshape(Ux_norm(:,i) ,nx,ny));
+title(sprintf('Mode %i',i))
+
+end
+
+
+savepath = "C:\Users\selia\Desktop\Bachelor Project images\Qualitative analysis"; 
+mode_fig_name = "Velocity-x modes.pdf"; 
+exportgraphics(mode_fig, fullfile(savepath,mode_fig_name), "ContentType","vector");
+
+mode_fig = figure('Position',[400,10,300,700]); 
+subplot(m+1,1,1)
+
+plotCylinder(reshape(Yavg_norm ,nx,ny));
+title('Mean')
+
+for i = 1:m
+subplot(m+1, 1,i+1)
+plotCylinder(reshape(Uy_norm(:,i) ,nx,ny));
+title(sprintf('Mode %i',i))
+end
+
+
+savepath = "C:\Users\selia\Desktop\Bachelor Project images\Qualitative analysis"; 
+mode_fig_name = "Velocity-y modes.pdf"; 
+exportgraphics(mode_fig, fullfile(savepath,mode_fig_name), "ContentType","vector");
 %% Coefficient of modes time series
 s = diag(S); %singular values vector
 
@@ -68,17 +103,21 @@ for i = 2:length(a)-1
     da(i-1,:) = (a(i+1,:) - a(i-1,:))./ (2*dt) ;
 end
     
-figure() %plot coeficcients and derivatives 
+amp_fig = figure('position',[400,100,800,500]); grid on; %plot coeficcients and derivatives 
 for i = 1:m
     subplot(m,1,i); hold on; 
-    plot(tspan(2:end-1), da(:,i),"--b")
-    plot(tspan(2:end-1), a(2:end-1,i),"-r")
-    legend('Derivative','Amplitude')
-    ylabel(sprintf('Mode %i',i))
+    plot(tspan(2:end-1), da(:,i),".b")
+    plot(tspan(2:end-1), a(2:end-1,i),".r")
+    if i == 1; legend('Derivative','Amplitude'); end
+    ylabel(sprintf('$ a_{%i}$',i))
+    set(gca,'fontsize',10); grid on; 
 end
+set(gcf,'color','w');
 xlabel('Time'); 
 
-
+savepath = "C:\Users\selia\Desktop\Bachelor Project images\Qualitative analysis"; 
+amp_fig_name = "Velocity amplitudes.pdf"; 
+%exportgraphics(amp_fig, fullfile(savepath,amp_fig_name), "ContentType","vector");
 %% Pool Data (i.e., build library of nonlinear time series)
 
 polyorder = 2;
@@ -92,65 +131,49 @@ Theta = poolData_nconstant(a,nVars,polyorder);
 
 lambda = 0.2; % lambda is our sparsification knob.
 
-%find best fit coefficients
-% use lasso regression instead of STLS
-%{
-for i = 1:m
-[Xi(:,i),stats] = lasso(Theta(range,:),da(:,i),'Lambda',lambda);
-end
-%}
 
 Xi = sparsifyDynamics(Theta(2:end-1,:),da,lambda,nVars);
 
 
-%%force constraints
-%{
-m1 = 1; %( abs(Xi(2,1)) + abs(Xi(1,2)) ) / 2;
-Xi(2,1) = - m1 ;  
-Xi(1,2) = m1; 
-
-m2 = 2; % ( abs(Xi(4,3)) + abs(Xi(3,4)) ) / 2;
-Xi(4,3) =  m2 ;  
-Xi(3,4) = - m2 ;  
-
-m3 = 3; %( abs(Xi(6,5)) + abs(Xi(5,6)) ) / 2;
-Xi(6,5) = - m3 ;  
-Xi(5,6) =  m3 ;  
-%}
-
 % list of variable names
-var_name = {'x','y','z','alpha','beta','gamma','i','j','k','v'};
+var_name = {'a1','a2','a3','a4','a5','a6','a7','a8','a9','a10','a11','a12','a13','a14','a15','a16','a17','a18','a19','a20'};
 %print dynamics
 poolDataLIST_nconstant(var_name(1:m),Xi,nVars,polyorder);
 
 %% Compute antiderivative from sparse dynamics
+
 x0 = a(1,:); %initial values taken from time series amplitude
 
 %extrapolate system in time to see if unstable
-tspan = 0: dt: 2* 150*dt;
+tspan = 0: dt: 1 * size(a,1)*dt - dt;
 
 %options = odeset('RelTol',1e-12,'AbsTol',1e-12*ones(1,3));
+
 %integrate discovered dynamics with ode 45
 
 [t,ai] = ode45(@(t,x) Diffeq_id_sys_nconstant(t,x,Xi,nVars,polyorder), tspan, x0); 
 
 %plot amplitudes of modes along with discovered amplitudes
-figure() 
+figure()
 set(gcf,'color','white');
-for i = 1:m
-    subplot(m,1,i); hold on; 
-    plot(t,ai(:,i),'b')
-    plot(t(1:length(a(:,i))) , a(:,i),'r')
-    ylabel(sprintf('Mode %i',i));
-    legend('Identified system','Full system')
+%define plotting indexes
+Plt_inx = 1:size(a,1);
 
-    if i == 1; title('System amplitude');
+
+for i = 1:m
+    subplot(m,1,i); hold on; grid on; 
+    plot(t,ai(:,i),'b')
+    plot(t(Plt_inx) , a(Plt_inx,i),'r')
+    ylabel(sprintf('$a_{%i}$',i));
+    
+    if i == 1; legend('Reproduced','Original');
     elseif i == m; xlabel('Time [s]');
     end
 end
 
+
 %plot phase space with discovered dynamics
-figure()
+fig_phase = figure('position',[400,100,800,500]);
 set(gcf,'color','white');
 %vector of plot position very stupid way of finding vector of plot
 %positions. 
@@ -171,14 +194,22 @@ for i = 1:m
         if j > i
         k = k+1;
         subplot(m-1,m-1,pos(k))
-        plot(ai(:,i), ai(:,j),'b');  grid on; hold on; axis equal 
-        plot(a(:,i),a(:,j),'r',LineWidth=2); 
-        %legend('Identified system','Full system'); grid on ; 
-        xlabel(sprintf('Mode %i',i)); ylabel(sprintf('Mode %i',j));
+        grid on; hold on; axis equal 
+        plot(a(Plt_inx,i),a(Plt_inx,j),'r',LineWidth=2); 
+        %plot(ai(:,i), ai(:,j),'b');
+        if pos(k) == 1
+        %lgd = legend('Full system','Identified system'); 
+        %lgd.Position = [0.18,0.73,0.01,0.01]; 
         end
+        xlabel(sprintf('$a_{%i}$',i)); ylabel(sprintf('$a_{%i}$',j));
+        end
+        set(gca,'fontsize',9)
     end 
-end 
+end  
 
+savepath = "C:\Users\selia\Desktop\Bachelor Project images\Qualitative analysis"; 
+phase_fig_name = "Velocity Phase portrait.pdf"; 
+exportgraphics(fig_phase, fullfile(savepath,phase_fig_name), "ContentType","vector");
 
 %% Recreate flow from identified system and POD modes 
 

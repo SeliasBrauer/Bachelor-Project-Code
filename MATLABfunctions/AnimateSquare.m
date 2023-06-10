@@ -20,6 +20,7 @@ load CCcool.mat
 colormap(CC);  % use custom colormap
 hold on; axis equal; 
 colorbar(); 
+clim([-5,5]); 
 
 % add contour lines (positive = solid, negative = dotted)
 [~,con1] = contour(VORT(:,:,1),[-5.5:.5:-.5 -.25 -.125],':k','LineWidth',1.2);
